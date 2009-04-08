@@ -1,0 +1,24 @@
+.to-field {
+	border:1px solid #bbb;
+	padding:2px;
+	background:#f4f4f4;
+	cursor: text;
+}
+
+.to-field input {
+	border:none;
+	background:transparent;
+}
+
+ul.search-results {
+	position:absolute;
+	background:#f8f8f8;
+	border:1px solid #eee;
+	padding-left:0;
+	list-style:none;
+}
+
+ul.search-results li {
+	padding:5px;
+	border-bottom:1px solid #f7f7f7;
+}

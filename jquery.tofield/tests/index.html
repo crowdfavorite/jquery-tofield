@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>To: Field Tests</title>
+	<script type="text/javascript" charset="utf-8" src="jquery-1.3.2.js"></script>
+	<script type="text/javascript" charset="utf-8" src="../jquery.tofield.js"></script>
+	<script type="text/javascript" charset="utf-8">
+		jQuery(document).ready(function() {
+			jQuery('input[name=test-1]').toField({
+				contacts: [
+					{ name: 'Thomas Jefferson', address: 'tommy.j@whitehouse.gov' },
+					{ name: 'Albert Einstein', address: 'bert@relativi.ty' },
+				]
+			});
+		});
+	</script>
+	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
+	<!-- Date: 2009-04-08 -->
+</head>
+<body>
+	<style type="text/css" media="screen">
+		input {
+			display:block;
+		}
+	</style>
+	<form action="" method="get" accept-charset="utf-8">
+		<input name="test-1" type="text" />
+		<input name="test-2" type="text" />
+		<input name="test-3" type="text" />
+		<p><input type="submit" value="Continue &rarr;"></p>
+	</form>
+</body>
+</html>
