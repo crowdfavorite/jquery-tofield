@@ -11,12 +11,96 @@
 		jQuery(document).ready(function() {
 			jQuery('input[name=test-1]').toField({
 				contacts: [
-					{ name: 'Thomas Jefferson', address: 'tommy.j@whitehouse.gov' },
-					{ name: 'Albert Einstein', address: 'bert@relativi.ty' },
+					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
+					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' },
+					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
+					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' }
 				]
 			});
+			jQuery('input[name=test-2]').toField({
+				contacts: [
+					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
+					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' },
+					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
+					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
+				]
+			});
+			jQuery('input[name=test-3]').toField({
+				options: {
+					verticalOnly: false
+				},
+				contacts: [
+					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
+					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' },
+					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
+					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
+				]
+			});
+			
+			
+			// test
+			/*
+			window.HistoryInput = $.extend((function(options) {
+				$.extend(this, options);
+			}).prototype, {
+				type: 'text',
+				value: '',
+				name: '',
+				history: [],
+				
+				appendTo: function(selector) {
+					var self = this;
+					var input = $('<input type="' + this.type + '" name="' + this.name + '" value="' + this.value + '" />');
+					$(selector).append(input);
+					input.change(function(event) {
+						self.log(input.val());
+					});
+
+					input.keydown(function() {
+						// look for up arrow, etc ...
+					})
+				},
+
+				log: function(text) {
+					this.history.push(text);
+				}
+
+			});
+
+			window.Test = function() {
+				
+			}
+			
+			Test.prototype = new HistoryInput()
+*/
+/*
+			var Mixin = {
+				mixinProp: {
+					someKey: 'someValue'
+				}
+			};
+			
+			var Test = function(name) {
+				this.constructor.prototype = $.extend(true, {}, this.constructor.prototype);
+				console.dir(this.constructor.callee);
+				this.name = name;
+			};
+			
+			$.extend(true, Test.prototype, {
+				name: '',
+				nativeProp: {
+					someKey: 'someValue'
+				}
+			});
+			$.extend(true, Test.prototype, Mixin);
+			
+			window.t1 = new Test('t1');
+			window.t2 = new Test('t2');
+*/
+
 		});
 	</script>
+	
 	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
 	<!-- Date: 2009-04-08 -->
 </head>
@@ -27,9 +111,18 @@
 		}
 	</style>
 	<form action="" method="get" accept-charset="utf-8">
-		<input name="test-1" type="text" />
-		<input name="test-2" type="text" />
-		<input name="test-3" type="text" />
+		<fieldset>
+			<legend>Form/Fieldset</legend>
+			<input name="test-1" type="text" />
+		</fieldset>
+		<fieldset style="position:relative; left:30px;">
+			<legend>Relatively Positioned Fieldset</legend>
+			<input name="test-2" type="text" />
+		</fieldset>
+		<fieldset>
+			<legend>Long Input</legend>
+			<input name="test-3" type="text" size="80"/>
+		</fieldset>
 		<p><input type="submit" value="Continue &rarr;"></p>
 	</form>
 </body>

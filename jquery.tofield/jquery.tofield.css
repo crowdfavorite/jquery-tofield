@@ -3,11 +3,20 @@
 	padding:2px;
 	background:#f4f4f4;
 	cursor: text;
+	position:relative;
+	overflow:auto;
 }
 
 .to-field input {
 	border:none;
-	background:transparent;
+	background:transparent;	
+}
+.to-field input:focus {
+	outline: 0 none;
+}
+
+.inline-input-container {
+	clear:both;
 }
 
 ul.search-results {
@@ -16,9 +25,63 @@ ul.search-results {
 	border:1px solid #eee;
 	padding-left:0;
 	list-style:none;
+	font-size:12px;
+	font-family: Helvetica, Arial, sans-serif;
+	-moz-border-radius:4px;
+	-webkit-border-radius:4px;
+	-moz-box-shadow: 0px 3px 4px #888;
+	-webkit-box-shadow: 0px 3px 4px #888;
+	opacity:.95;
+	overflow:hidden;
 }
 
 ul.search-results li {
 	padding:5px;
-	border-bottom:1px solid #f7f7f7;
+}
+
+ul.search-results li.highlighted {
+	background:#3d80df;
+	color:#fff;	
+}
+ul.search-results li.highlighted .contact-identifier {
+	color:#ddd;
+}
+ul.search-results li.mirror .contact-name {
+	display:none;
+}
+ul.search-results .contact-identifier {
+	margin-top:4px;
+	font-size:10px;
+	color:#777;
+}
+
+ul.search-results li.mirror .contact-identifier {
+	font-size:12px;
+	color:#333;
+}
+ul.search-results li.highlighted.mirror .contact-identifier {
+	color:#fff;
+}
+.contact-token {
+	font-family: Helvetica, Arial, sans-serif;
+	font-size:10px;
+	background: #dfdfdf url(images/close-token.gif) no-repeat right center;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+	-khtml-border-radius:3px;
+	border-radius:3px;
+	float:left;
+	margin:1px 2px 1px 0;
+	padding:2px 23px 2px 3px;
+
+}
+a.contact-token, a.contact-token a:hover {
+	text-decoration: none;
+	color:#222;
+}
+.contact-token.token-hover {
+}
+.contact-token.x-hover {
+	background-image: url(images/close-token-active.gif);
+	cursor:pointer;
 }
