@@ -19,8 +19,7 @@
 	$.fn.toField = function(options) {
 		
 		// build main options before element iteration
-		var opts = $.extend({}, $.fn.toField.defaults, options);
-		
+		var opts = $.extend(true, {}, $.fn.toField.defaults, options);
 		// iterate over matched elements
 		return this.each(function() {
 			// build element specific options
@@ -44,8 +43,14 @@
 		}
 		return results;
 	};
-	
+
+
+	/**
+	 * By default, we create a sorted array of our current contacts for every current key in 
+	 * searchKeys.
+	 */
 	$.fn.toField.sort = function() {
+		this.sortKeyedContacts();
 	};
 
 	$.fn.toField.getResultItemMarkup = function(contact) {
@@ -61,50 +66,33 @@
 			<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (contact['class'].length ? ' ' + contact['class'] : '') + '">\
 				' + (contact.name.length ? contact.name : contact.identifier) + '\
 			</a>';
-	};
-
-
-	$.fn.toField.addContacts = function(contacts) {
-
-	};
-	
-	$.fn.toField.setContacts = function(contacts) {
-		this.contacts = [];
-		var toField = this;
-		//console.log('setting contacts for ' + this.jqFormInput.attr('name'));
-		$.each(contacts, function(i, contact) {
-			if (!contact.identifier) {
-				throw 'Contact ' + (contact.name ? contact.name : '') + ' does not have an identifier.';
-			}
-			//var contactObj = new Contact(contact);
-			contactObj = construct(Contact, [contact]);
-			toField.contacts.push(contactObj);
-			//console.log(toField.getFormName() + ' is observing ' + contactObj.name + ' for selectionStateChanged');
-			contactObj.addObserver(
-				'selectionStateChanged', 
-				toField.handleContactSelectionStateChanged._cfBind(toField)
-			);
-		});
-		this.notifyObservers('contactsCollectionChanged', this.contacts);
-		/*
-		$(this.contacts).each(function(i, contact) {
-			console.log('contact ' + contact.name + ' has observers: ');
-			console.dir(contact.observers);
-		});
-		*/
-	};
+	};	
 
 	$.fn.toField.defaults = {
 		contacts: [],
-		ajaxEndpoint: null,
+		ajax: {
+			endpoint: null,
+			queryKeys: {
+				text: 'text',
+				maxSuggestions: 'maxSuggestions'
+			},
+			queryExtra: {
+			},
+			dataType: 'json'
+		},
 		maxTokenRows: 4,
 		maxSuggestions: 10,
 		acceptAdHoc: true,
 		search: $.fn.toField.search,
 		sort: $.fn.toField.sort,
+		idleDelay: 200,
+		searchKeys: [],
+		coreSearchKeys: [
+			'name',
+			'identifier'
+		],
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
-		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
-		setContacts: $.fn.toField.setContacts
+		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
 	};	
 
 	// simple observer pattern
@@ -246,13 +234,20 @@
 		this.options = options;
 		this.jqFormInput = jqFormInput;
 
+		this.sortedContacts = {};
+		for (var i = 0; i < this.options.searchKeys.length; i++) {
+			this.sortedContacts[this.options.searchKeys[i]] = [];
+		}
+		for (var i = 0; i < this.options.coreSearchKeys.length; i++) {
+			this.sortedContacts[this.options.coreSearchKeys[i]] = [];
+		}
+		//console.dir(this.sortedContacts);
 		//this.observers['input_' + this.jqFormInput.attr('name')] = this.jqFormInput.attr('name') + ' wuz here';
 
 		// overridable methods will be defaults (global, defined below) or user-supplied. 
 		// peel off a copy of each, bound to this instance.
 		this.search = options.search._cfBind(this);
 		this.sort = options.sort._cfBind(this);
-		this.setContacts = options.setContacts._cfBind(this);
 		this.getResultItemMarkup = options.getResultItemMarkup._cfBind(this);
 		this.getContactTokenMarkup = options.getContactTokenMarkup._cfBind(this);
 		
@@ -292,6 +287,7 @@
 		mirrorContact: null,
 		searchResults: [],
 		searchText: '',
+		keydownTimer: -1,
 
 		options: {},
 
@@ -442,20 +438,15 @@
 		},
 		
 		createMirrorContact: function() {
-			var c = construct(MirrorContact, [{ name: '', identifier: '' }]);
+			var c = construct(MirrorContact, [{ name: '', identifier: '' }, this]);
 			c.jqResultItem = this.createResultListItem(c);
 			c.jqResultItem.addClass('mirror');
 			var toField = this;
-			this.addObserver('searchTextChanged', (function(text) {
-				this.setIdentifier(text);
-				this.jqResultItem.html(toField.getResultItemMarkup(this));
-			})._cfBind(c));
 			c.addObserver(
 				'selectionStateChanged',
 				toField.handleContactSelectionStateChanged._cfBind(toField)
 			);
 			return c;
-
 		},
 		
 		getMirrorContact: function() {
@@ -500,6 +491,7 @@
 			$('li', jqList).removeClass('highlighted');
 			
 			this.jqHighlightedResult = jqItem;
+			//console.log(jqItem);
 			
 			if (this.jqHighlightedResult) {
 				this.jqHighlightedResult.addClass('highlighted');
@@ -566,6 +558,9 @@
 				this.dispatchSearch(text);
 			}
 			else {
+				if (this.options.ajax.endpoint) {
+					this.pruneContacts();
+				}
 				this.hideSearchResults();
 			}
 		},
@@ -601,8 +596,203 @@
 			this.notifyObservers('searchTextChanged', text);
 		},
 		
+		sortKeyedContacts: function() {
+			for (var key in this.sortedContacts) {
+				this.sortedContacts[key] = this.contacts.slice(0);
+				Contact.prototype.keySorting_toString = function() {
+					return this[key];
+				};
+				this.sortedContacts[key].sort();
+			}
+			Contact.prototype.keySorting_toString = null;
+		},
+		
+		sendAjaxRequest: function(text) {
+			var query = {};
+			for (var k in this.options.ajax.queryKeys) {
+				query[this.options.ajax.queryKeys[k]] = this.options[k];
+			}
+			query[this.options.ajax.queryKeys.text] = text;
+			var query = $.extend(this.options.ajax.queryExtra, query);
+			$.get(
+				this.options.ajax.endpoint,
+				query,
+				this.handleAjaxSuccess._cfBind(this),
+				this.options.ajax.dataType
+			);
+		},
+		
 		dispatchSearch: function(text) {
-			this.notifyObservers('searchCompleted', this.search(text));
+
+			var f = (function() {
+				if (this.options.ajax.endpoint) {
+					this.sendAjaxRequest(text);
+				}
+				else {
+					var results = this.search(text);
+					this.notifyObservers('searchCompleted', results);
+				}
+				this.keydownTimer = -1;
+			})._cfBind(this);
+
+			if (this.keydownTimer > 0) {
+				clearTimeout(this.keydownTimer);
+			}
+			this.keydownTimer = setTimeout(f, this.options.idleDelay);
+/*
+			
+			if (this.options.ajax.endpoint) {
+				var f = (function() {
+					this.sendAjaxRequest(text);
+					this.keydownTimer = -1;
+				})._cfBind(this);
+				
+				if (this.keydownTimer > 0) {
+					clearTimeout(this.keydownTimer);
+				}
+				this.keydownTimer = setTimeout(f, idleDelay);
+			}
+			else {
+				var results = this.search(text);
+				this.notifyObservers('searchCompleted', results);
+			}
+*/
+		},
+		
+		/**
+		 * Does not remove contacts that are selected.
+		 */
+		pruneContacts: function() {
+			var n = this.contacts.length;
+			//console.dir(this.contacts);
+			this.contacts = $.grep(this.contacts, function(contact) { return contact.isSelected(); });
+			//console.log('pruned ' + (n - this.contacts.length) + ' contacts, now have ' + this.contacts.length + ' contacts' );
+		},
+
+		setContacts: function(contacts) {
+			this.pruneContacts();
+			var toField = this;
+			//console.log('setting contacts for ' + this.jqFormInput.attr('name'));
+			$.each(contacts, function(i, contact) {
+				if (!contact.identifier) {
+					throw 'Contact ' + (contact.name ? contact.name : '') + ' does not have an identifier.';
+				}
+				if (!contact._isADuck) {
+					contactObj = construct(Contact, [contact, this]);
+					contactObj.addObserver(
+						'selectionStateChanged', 
+						toField.handleContactSelectionStateChanged._cfBind(toField)
+					);
+				}
+				else {
+					// reuse it
+					//console.log('contact ' + contact.name + ' is a duck');
+					contactObj = contact;
+				}
+				if (!contactObj.isSelected()) {
+					toField.contacts.push(contactObj);
+				}
+				//console.log(toField.getFormName() + ' is observing ' + contactObj.name + ' for selectionStateChanged');
+			});
+			this.notifyObservers('contactsCollectionChanged', this.contacts);
+			this.sort();
+		},
+		
+		searchBy: function(key, text) {
+			//console.log('search by ' + key + ' for ' + text + ', sorted contacts: ');
+			//console.dir(this.sortedContacts[key]);
+			if (this.sortedContacts[key]) {
+				return this.binarySearch(text, key, this.sortedContacts[key]);
+			}
+			return null;
+		},
+		
+		binarySearch: function(match, key, array) {
+			var searchState = { left: -1, right: -1, middle: -1, result: null };
+			var searchTimer = null;
+			var found = false;
+			var sleep = 30;
+			var iterations = 20;	// should be plenty
+			
+			searchState = this._statefulBSearch(match, key, array, searchState, iterations);
+			if ((searchState.left >= 0 && (searchState.left == searchState.middle || searchState.right == searchState.middle)) || searchState.result) {
+				// finished searching
+				if (searchState.result) {
+					found = searchState.result;
+				}
+			}
+			else {
+				// ran out of iterations, not found
+				//searchTimer = setTimeout(arguments.callee, sleep);
+			}
+			return found;
+			/*
+			searchTimer = setTimeout((function() {
+				searchState = this._statefulBSearch(match, key, array, searchState, iterations);
+				if ((searchState.left >= 0 && (searchState.left == searchState.middle || searchState.right == searchState.middle)) || searchState.result) {
+					// finished searching
+					if (searchState.result) {
+						found = searchState.result;
+					}
+				}
+				else {
+					// ran out of iterations, not found
+					searchTimer = setTimeout(arguments.callee, sleep);
+				}
+			})._cfBind(this), sleep);
+			*/
+		},
+		
+		_statefulBSearch: function(match, key, sortedArray, state, iterations) {
+			match = match.toLowerCase();
+			var nObjects = sortedArray.length;
+			state.left = (state.left >= 0 ? state.left : 0);
+			state.right = (state.right >= 0 ? state.right : sortedArray.length - 1);
+			state.middle = (state.middle >= 0 ? state.middle : Math.floor(state.right / 2));
+			var i = 0;
+			while (state.left < state.right && i < iterations) {
+				if (sortedArray[state.middle][key].toLowerCase() == match) {
+					state.result = sortedArray[state.middle];
+					return state;
+				}
+				else if (match < sortedArray[state.middle][key].toLowerCase()) {
+					state.right = state.middle;
+				}
+				else if (match > sortedArray[state.middle][key].toLowerCase()) {
+					state.left = state.middle;
+				}
+				if ((state.right - state.left == 1) && (sortedArray[state.right][key].toLowerCase() == match)) {
+					state.result = sortedArray[state.right];
+					return state;
+				}
+				state.middle = Math.floor((state.right + state.left) / 2);
+				i++;
+			}
+			return state;
+		},
+		
+		mergeContacts: function(contacts) {
+			var existing = null;
+			//console.log('merge ' + contacts.length + ' incoming contacts into current list with ' + this.contacts.length + ' ... ');
+			var newContacts = this.contacts.slice(0); // new copy
+			for (var i = 0; i < contacts.length; i++) {
+				existing = this.searchBy('identifier', contacts[i].identifier);
+				if (!existing) {
+					newContacts.push(contacts[i]);
+				}
+				else {
+					//console.log(existing.name + ' already cached');
+				}
+			}
+			this.setContacts(newContacts);
+			//console.log('done, current lenght: ' + this.contacts.length);
+		},
+		
+		handleAjaxSuccess: function(data, status) {
+			this.mergeContacts(data);
+			var ids = $.map(data, function(item, i) { return item.identifier; });
+			var contacts = $.grep(this.contacts, function(item, i) { return ($.inArray(item.identifier, ids) != -1); });
+			this.notifyObservers('searchCompleted', contacts);
 		},
 		
 		handleSearchCompleted: function(results) {
@@ -619,8 +809,10 @@
 			}
 			// skip the mirror
 			for (var i = 0; i < results.length; i++) {
-				this.searchResults.push(results[i]);
-				jqList.append(this.createResultListItem(results[i]));
+				if (!results[i].isSelected()) {
+					this.searchResults.push(results[i]);
+					jqList.append(this.createResultListItem(results[i]));
+				}
 				/*
 				if (list.height() > availableHeight) {
 					list.setStyle('height', availableHeight + 'px');
@@ -636,9 +828,21 @@
 			if ((results.length == 0 && this.options.acceptAdHoc) || !oldHighlightedContact) {
 				this.highlightResult(0);	// mirror
 			}
+			else if (results.length == 1) {
+				// if only one result, highlight it.
+				if (this.options.acceptAdHoc) {
+					this.highlightResult(1);
+				}
+				else {
+					this.highlightResult(0);
+				}
+			}
 			else if (oldHighlightedContact) {
 				var found = false;
 				for (var i = 0; i < this.searchResults.length; i++) {
+//					if (!this.searchResults[i].isEqualToContact) {
+//						console.dir(this.searchResults[i]);
+//					}
 					if (this.searchResults[i].isEqualToContact(oldHighlightedContact)) {
 						this.highlightResult(i);
 						found = true;
@@ -713,13 +917,16 @@
 				//this.jqContainer.css('overflow', 'hidden');
 			}
 		},
+
 		handleContactCollectionChanged: function(collection) {
 			
 		}
 	});
 	
-	var Contact = function(data) {
+	var Contact = function(data, toField) {
+		this.toField = toField;
 		$.extend(this, data);
+		//console.log('creating contact ' + data.name);
 		//console.log('constructing contact ' + this.name + ', observers: ');
 		//console.dir(this.observers);
 		//this.observers['contact_' + this.name] = this.name + ' wuz here';
@@ -728,10 +935,17 @@
 //	console.log('clone of Observable is:');
 //	console.dir(clone(Observable));
 	$.extend(true, Contact.prototype, Observable, {
+		toField: null,
 		name: '',
 		identifier: '',
 		'class': '',
 		selected: false,
+		
+		_isADuck: true,
+		
+		keySorting_toString: null,
+		
+		
 		setName: function(name) {
 			this.name = name;
 			this.notifyObservers('nameChanged', name);
@@ -751,19 +965,40 @@
 			this.selected = false;
 			this.notifyObservers('selectionStateChanged', { contact: this, state: false });
 		},
+		isSelected: function() {
+			return this.selected;
+		},
 		isEqualToContact: function(contact) {
-			return (this.identifier == contact.identifier && this['class'] == contact['class']);
+			return (this.identifier == contact.identifier/* && this['class'] == contact['class']*/);
+		},
+		toString: function() {
+			if (this.keySorting_toString) {
+				return this.keySorting_toString.apply(this);
+			}
+			return this.name;
 		}
 	});
 	//this.observers[this.name + '_test'] = this.name + ' wuz here';
 
-	var MirrorContact = function(data) {
-		//console.log(this.superclass);
+	var MirrorContact = function(data, toField) {
 		this.superclass.prototype.constructor.apply(this, arguments);
+		this.handleSearchTextChanged = this.handleSearchTextChanged._cfBind(this);	// heh. grumble grumble
+		toField.addObserver('searchTextChanged', this.handleSearchTextChanged);
 		return this;
 	}
 	$.extend(true, MirrorContact.prototype, Contact.prototype, {
-		superclass: Contact
+		superclass: Contact,	// kinda-sorta inheritance ... meh.
+		select: function() {
+			this.toField.removeObserver('searchTextChanged', this.handleSearchTextChanged);
+			this.superclass.prototype.select.apply(this);
+		},
+		handleSearchTextChanged: function(text) {
+			this.setIdentifier(text);
+			this.setName(text);
+			if (this.jqResultItem) {
+				this.jqResultItem.html(this.toField.getResultItemMarkup(this));
+			}
+		}
 	});
 
 	var Token = function(contact, toField) {

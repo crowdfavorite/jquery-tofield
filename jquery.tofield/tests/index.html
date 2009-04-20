@@ -26,9 +26,6 @@
 				]
 			});
 			jQuery('input[name=test-3]').toField({
-				options: {
-					verticalOnly: false
-				},
 				contacts: [
 					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
 					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' },
@@ -36,7 +33,15 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
-			
+			jQuery('input[name=test-4]').toField({
+				ajax: {
+					endpoint: '/jquery.tofield/tests/internal-only/endpoint.php',
+					queryExtra: {
+						fullNames: 'true'
+					}
+				}
+			});
+
 			
 			// test
 			/*
@@ -123,6 +128,11 @@
 			<legend>Long Input</legend>
 			<input name="test-3" type="text" size="80"/>
 		</fieldset>
+		<fieldset>
+			<legend>Ajax</legend>
+			<input name="test-4" type="text" size="20"/>
+		</fieldset>
+
 		<p><input type="submit" value="Continue &rarr;"></p>
 	</form>
 </body>

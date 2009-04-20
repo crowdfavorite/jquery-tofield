@@ -1,0 +1,1 @@
+Note - the data in all.js comes from name.com and should not be released with the plugin without their permission.
