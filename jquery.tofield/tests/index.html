@@ -10,13 +10,15 @@
 	<script type="text/javascript" charset="utf-8">
 		jQuery(document).ready(function() {
 			jQuery('input[name=test-1]').toField({
+				idleDelay:500,
 				contacts: [
 					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' },
-					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
+					{ name: 'Edgar Allen Poe', identifier: 'allen@rapping.net' },
 					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' }
 				]
 			});
+			/*
 			jQuery('input[name=test-2]').toField({
 				contacts: [
 					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
@@ -33,6 +35,7 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
+			
 			jQuery('input[name=test-4]').toField({
 				ajax: {
 					endpoint: '/jquery.tofield/tests/internal-only/endpoint.php',
@@ -41,68 +44,26 @@
 					}
 				}
 			});
+			*/
 
-			
-			// test
-			/*
-			window.HistoryInput = $.extend((function(options) {
-				$.extend(this, options);
-			}).prototype, {
-				type: 'text',
-				value: '',
-				name: '',
-				history: [],
-				
-				appendTo: function(selector) {
-					var self = this;
-					var input = $('<input type="' + this.type + '" name="' + this.name + '" value="' + this.value + '" />');
-					$(selector).append(input);
-					input.change(function(event) {
-						self.log(input.val());
+			jQuery.get(
+				'/jquery.tofield/tests/internal-only/endpoint.php',
+				{ fullNames: 1 },
+				function(data) {
+					jQuery('input[name=test-5]').toField({
+						contacts: data,
+						searchKeys: {
+							firstName: {},
+							lastName: {},
+							identifier: {}
+						}
 					});
-
-					input.keydown(function() {
-						// look for up arrow, etc ...
-					})
 				},
+				'json'
+			);
 
-				log: function(text) {
-					this.history.push(text);
-				}
-
-			});
-
-			window.Test = function() {
-				
-			}
 			
-			Test.prototype = new HistoryInput()
-*/
-/*
-			var Mixin = {
-				mixinProp: {
-					someKey: 'someValue'
-				}
-			};
 			
-			var Test = function(name) {
-				this.constructor.prototype = $.extend(true, {}, this.constructor.prototype);
-				console.dir(this.constructor.callee);
-				this.name = name;
-			};
-			
-			$.extend(true, Test.prototype, {
-				name: '',
-				nativeProp: {
-					someKey: 'someValue'
-				}
-			});
-			$.extend(true, Test.prototype, Mixin);
-			
-			window.t1 = new Test('t1');
-			window.t2 = new Test('t2');
-*/
-
 		});
 	</script>
 	
@@ -131,6 +92,10 @@
 		<fieldset>
 			<legend>Ajax</legend>
 			<input name="test-4" type="text" size="20"/>
+		</fieldset>
+		<fieldset>
+			<legend>Client-side search on big list</legend>
+			<input name="test-5" type="text" size="20"/>
 		</fieldset>
 
 		<p><input type="submit" value="Continue &rarr;"></p>

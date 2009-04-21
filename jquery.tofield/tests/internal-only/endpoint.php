@@ -28,8 +28,9 @@ if ($fullNames) {
 	$firstNames = array_values(array_filter($output, create_function('$item', 'return $item->gender !== \'surname\';')));
 	$output = array();
 	
+	$n = 0;
 	foreach ($firstNames as $item) {
-		$index = (((strlen($item->name) + ord($item->name[0]) + ord($item->name[1])) / 5) * .1);
+		$index = (((strlen($item->name) + ord($item->name[0]) + $n) / 5) * .1);
 		$index = $index > 1 ? $index - floor($index) : $index;
 //		echo $index.'... ';
 		$index = floor(count($surnames) * $index);
@@ -40,6 +41,7 @@ if ($fullNames) {
 		$item->firstName = $item->name;
 		$item->name = $item->firstName.' '.$item->lastName;
 		$output[] = $item;
+		$n++;
 	}
 }
 

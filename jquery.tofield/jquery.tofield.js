@@ -30,6 +30,7 @@
 
 	// Globally overridable static methods. Set before first toField initialization.
 	// During execution, `this` will refer to the appropriate ToField object.
+/*
 	$.fn.toField.search = function(text) {
 		var results = [];
 		//console.log(this.contacts.length + ' contacts');
@@ -43,7 +44,56 @@
 		}
 		return results;
 	};
-
+*/
+	/**
+	 * 
+	 */
+	$.fn.toField.search = function(text) {
+		var results = [];
+		
+		for (var key in this.options.searchKeys) {
+			if (results.length > this.options.maxSuggestions) {
+				break;
+			}
+			//console.log('searching by key: ' + key);
+			var hits = this.searchPrefixBy(key, text);
+			if (hits) {
+				// filter out already-found. there may be a better way to do this ...
+				hits = $.grep(hits, function(contact) {
+					for (var k = 0; k < results.length; k++) {
+						if (results[k].isEqualToContact(contact)) {
+							return false;
+						}
+					}
+					return true;
+				});
+				results = results.concat(hits);
+			}
+		}
+		/*
+		for (var i = 0; i < this.options.searchKeys.length; i++) {
+			if (results.length >= this.options.maxSuggestions) {
+				break;
+			}
+			var key = this.options.searchKeys[i];
+			var hits = this.searchPrefixBy(key, text);
+			if (hits) {
+				hits = $.grep(hits, function(contact) {
+					for (var k = 0; k < results.length; k++) {
+						if (results[k].isEqualToContact(contact)) {
+							return false;
+						}
+					}
+					return true;
+				});
+				results = results.concat(hits);
+			}
+		}
+		* */
+		//console.log('search results: ');
+		//console.dir(results);
+		return results;
+	};
 
 	/**
 	 * By default, we create a sorted array of our current contacts for every current key in 
@@ -86,11 +136,27 @@
 		search: $.fn.toField.search,
 		sort: $.fn.toField.sort,
 		idleDelay: 200,
-		searchKeys: [],
-		coreSearchKeys: [
+		searchKeys: {
+			name: {
+				search: null,
+				caseSensitive: false,
+				weight: .5
+			},
+			identifier: {
+				search: null,
+				caseSensitive: false,
+				weight: .5
+			}
+		},
+		/*
+		searchKeys: [
 			'name',
 			'identifier'
 		],
+		coreSearchKeys: [
+			'name',
+			'identifier'
+		],*/
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
 		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
 	};	
@@ -235,12 +301,20 @@
 		this.jqFormInput = jqFormInput;
 
 		this.sortedContacts = {};
+		
+		for (var key in this.options.searchKeys) {
+			this.sortedContacts[key] = [];
+		}
+		/*
 		for (var i = 0; i < this.options.searchKeys.length; i++) {
 			this.sortedContacts[this.options.searchKeys[i]] = [];
 		}
+		* */
+		/*
 		for (var i = 0; i < this.options.coreSearchKeys.length; i++) {
 			this.sortedContacts[this.options.coreSearchKeys[i]] = [];
 		}
+		*/
 		//console.dir(this.sortedContacts);
 		//this.observers['input_' + this.jqFormInput.attr('name')] = this.jqFormInput.attr('name') + ' wuz here';
 
@@ -292,6 +366,8 @@
 		options: {},
 
 		selectedTokens: [],
+		
+		currentSortKey: null,
 		
 		getFormName: function() {
 			return this.jqFormInput.attr('name');
@@ -460,7 +536,7 @@
 		selectHighlightedResult: function() {
 			if (this.jqHighlightedResult) {
 				var i = this.getHighlightedResultIndex();
-				console.log(this.searchResults[i]);
+				//console.log(this.searchResults[i]);
 				this.searchResults[i].select();
 			}
 			/*
@@ -595,16 +671,16 @@
 			this.searchText = text;
 			this.notifyObservers('searchTextChanged', text);
 		},
-		
+				
 		sortKeyedContacts: function() {
 			for (var key in this.sortedContacts) {
 				this.sortedContacts[key] = this.contacts.slice(0);
-				Contact.prototype.keySorting_toString = function() {
-					return this[key];
-				};
+//				console.log('about to sort by ' + key);
+				this.currentSortKey = key;
 				this.sortedContacts[key].sort();
+//				console.dir(this.sortedContacts[key].slice(0, 30));
 			}
-			Contact.prototype.keySorting_toString = null;
+			this.currentSortKey = null;
 		},
 		
 		sendAjaxRequest: function(text) {
@@ -672,13 +748,15 @@
 		setContacts: function(contacts) {
 			this.pruneContacts();
 			var toField = this;
-			//console.log('setting contacts for ' + this.jqFormInput.attr('name'));
+			//console.log('setting contacts:');
+			//console.dir(contacts);
+			
 			$.each(contacts, function(i, contact) {
 				if (!contact.identifier) {
 					throw 'Contact ' + (contact.name ? contact.name : '') + ' does not have an identifier.';
 				}
 				if (!contact._isADuck) {
-					contactObj = construct(Contact, [contact, this]);
+					contactObj = construct(Contact, [contact, toField]);
 					contactObj.addObserver(
 						'selectionStateChanged', 
 						toField.handleContactSelectionStateChanged._cfBind(toField)
@@ -698,7 +776,181 @@
 			this.sort();
 		},
 		
-		searchBy: function(key, text) {
+		searchPrefixBy: function(key, text) {
+			if (this.sortedContacts[key]) {
+				//console.log('------ key search: searching ' + key + ' for ' + text + '------');
+				//console.dir(this.sortedContacts[key]);
+				var range = this.getRangeWithPrefix(text, key, this.sortedContacts[key]);
+				if (range.found) {
+					//console.log('found:');
+					//console.dir(this.sortedContacts[key].slice(range.start, range.end + 1));
+					return this.sortedContacts[key].slice(range.start, range.end + 1);
+				}
+			}
+			return null;
+		},
+		
+		getRangeWithPrefix: function(prefix, key, array) {
+			var left = 0;
+			var right = array.length - 1;
+			prefix = prefix.toLowerCase();
+			var found = lastFound = middle = -1;
+			// binary search on first letter, then binary search on second letter within
+			// the range of all names with the first letter ... and so on.
+			//console.log('walking through prefix ' + prefix);
+			for (var prefixIndex = 0; prefixIndex < prefix.length; prefixIndex++) {
+				//console.log('calling _binaryPrefixSearch with left: ' + left + ', right: ' + right + ', prefixIndex: ' + prefixIndex + ', key: ' + key);
+				found = this._binaryPrefixSearch(left, right, prefixIndex, prefix, key, array);
+				if (found != -1) {
+					// found is an index somwhere in a possible range of items with this prefix. expand out both edges to capture
+					// all with the prefix. edges should be inclusive. 
+					// (that is, it will be true that array[left][key] and array[right][key] will both be prefixed with passed prefix.)
+					// the next call to binaryPrefixSearch will be confined to this narrower range.
+					//console.log('found char ' + prefixIndex + ' of ' + prefix + ' in key ' + key + ' at index ' + found + ', expanding...');
+					left = right = found;
+//					if (left - 1 >= 0)
+//						console.log('array[left - 1][key].charAt(prefixIndex).toLowerCase(): ' + array[left - 1][key].charAt(prefixIndex).toLowerCase() + ', prefix.charAt(prefixIndex): ' + prefix.charAt(prefixIndex));
+//					while ((left - 1 >= 0) && (array[left - 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) left--;
+//					while ((right + 1 < array.length) && (array[right + 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) right++;
+
+//console.log('prefix: ' + prefix + ', prefixIndex: ' + prefixIndex + ', prefix.substr(0, prefixIndex): ' + prefix.substr(0, prefixIndex));
+					while ((left - 1 >= 0) && array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
+						//console.log('expanding left - 1. array[left - 1][key] = ' + array[left - 1][key] + ', prefix.substr(0, prefixIndex + 1) = ' + prefix.substr(0, prefixIndex + 1) + ', array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
+						left--
+					};
+					while ((right + 1 < array.length) && array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
+						//console.log('expanding right + 1. array[right + 1][key] = ' + array[right + 1][key] + ', prefix.substr(0, prefixIndex) = ' + prefix.substr(0, prefixIndex + 1) + ', array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
+						right++
+					};
+					//console.log('... range with prefix ' + prefix + ' is now (left, found, right): ' + left + ', ' + found + ', ' + right + ', (' + array[left][key] + ', ' + array[found][key] + ', ' + array[right][key] + ')');
+					lastFound = found;
+				}
+				else {
+					//console.log('did not find char ' + prefixIndex + ' of prefix ' + prefix +  ' in key ' + key + ', breaking with found = -1');
+					break;
+				}
+				middle = found;
+			}
+			
+			if (found >= 0) {
+				//console.log('made it through ' + prefixIndex + ' chars of prefix, returning found == true, start: ' + left + ' (' + array[left][key] + '), end: ' + right + ' (' + array[right][key] + ')');
+				return { found: true, start: left, end: right }
+			}
+			//console.log('could not find any items with prefix ' + prefix + ' in key ' + key);
+			return { found: false, start: left, end: right };
+			
+			if (prefixIndex > 0 && found >= 0) {
+				var exact = -1;
+				// expand out range on prefix for as far as we got through the prefix
+				//console.log('found middle element for prefix ' + prefix + ' in key ' + key + ': ' + array[middle] + ', expanding ...');
+				left = right = middle;
+				while ((left - 1 > 0) && (array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex)) == 0)) {
+					//console.log('index of ' + prefix.substr(0, prefixIndex) + ' in ' + array[left - 1][key].toLowerCase() + ' == 0');
+					left--;
+					/*
+					if (array[left][key].toLowerCase() == prefix) {
+						exact = left;
+						break;
+					}
+					* */
+				}
+				while ((right + 1 < array.length) && (array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex)) == 0)) {
+					//console.log('index of ' + prefix.substr(0, prefixIndex) + ' in ' + array[right + 1][key].toLowerCase() + ' == 0');
+					right++;
+					/*
+					if (array[right][key].toLowerCase() == prefix) {
+						exact = right;
+						break;
+					}
+					* */
+				}
+				if (exact >= 0) {
+					//console.log('... done. found exact match: ' + array[exact][key]);
+					return {found: true, start: exact, end: exact };
+				}
+				//console.log('... done. ' + (right - left) + ' in range, ' + array[left][key] + ' to ' + array[right][key]);
+				return { found: true, start: left, end: right };
+			}
+			//console.log('could not find prefix ' + prefix + ' in key ' + key);
+			return { found: false, start: left, end: right };
+		},
+		
+		_binaryPrefixSeachCmp: function(obj, prefix, charIndex, key) {
+			//console.log('>> comparing char ' + charIndex + ' of ' + obj[key] + ' and ' + prefix + ' ... ');
+			if (!obj[key]) {
+				//console.log('key: ' + key);
+				//console.dir(obj);
+				//console.trace();
+			}
+			var objName = obj[key].toLowerCase();
+			prefix = prefix.toLowerCase();
+			if (charIndex >= objName.length || charIndex >= prefix.length) {
+				r = objName.length > prefix.length ? 1 : -1;
+				//console.log('>> result: ' + r);
+				return r;
+			}
+			r = (
+				objName.charAt(charIndex) <= prefix.charAt(charIndex) ? (
+					objName.charAt(charIndex) < prefix.charAt(charIndex) ? -1 : 0
+				) : 1
+			);
+			//console.log('>> result: ' + r);
+			return r;
+		},
+		
+		_binaryPrefixSearch: function(left, right, charIndex, prefix, key, array) {
+//console.log('running binary search between ' + array[left][key] + ' and ' + array[right][key] + ' for char ' + charIndex + ' of prefix ' + prefix);
+			if (right == left) {
+				if (this._binaryPrefixSeachCmp(array[right], prefix, charIndex, key) == 0) {
+					//console.log(' ... right == left and it\'s a match, returning right, ' + array[right][key]);
+					return right;
+				}
+				//console.log(' ... right == left and no match, returning -1');
+				return -1;
+			}
+			while (right > left /*&& (right - left > 2)*/) {
+				// floor will keep us from ever seeing right; check it explicitly
+				var middle = Math.floor((left + right) / 2);
+				//console.log('>> left, middle, right : ' + left + ', ' + middle + ', ' + right + ' (' + array[left][key] +', ' + array[middle][key] + ', ' + array[right][key] + ')');
+				if (right - left == 1) {
+					if (this._binaryPrefixSeachCmp(array[right], prefix, charIndex, key) == 0) {
+						//console.log(' ... early returning right, ' + array[right][key]);
+						return right;
+					}
+					if (this._binaryPrefixSeachCmp(array[left], prefix, charIndex, key) == 0) {
+						//console.log(' ... early returning left, ' + array[left][key]);
+						return left;
+					}
+				}
+
+				var c = this._binaryPrefixSeachCmp(array[middle], prefix, charIndex, key);
+				if (c > 0) {
+					if (right == middle) {
+						//console.log(' ... right = middle, middle evaluated to 1; not found, returning -1');
+						return -1;
+						//console.log(' ... returning right, ' + array[right][key]);
+						//return right;
+					}
+					right = middle;
+				}
+				else if (c < 0) {
+					if (left == middle) {
+						//console.log(' ... left = middle, middle evaluated to -1; not found, returning -1');
+						return -1;
+						//console.log(' ... returning left, ' + array[left][key]);
+						//return left;
+					}
+					left = middle;
+				}
+				else {
+					//console.log(' ... returning middle, ' + array[middle][key]);
+					return middle;
+				}
+			}
+			return -1;
+		},
+
+		searchExactBy: function(key, text) {
 			//console.log('search by ' + key + ' for ' + text + ', sorted contacts: ');
 			//console.dir(this.sortedContacts[key]);
 			if (this.sortedContacts[key]) {
@@ -706,7 +958,7 @@
 			}
 			return null;
 		},
-		
+
 		binarySearch: function(match, key, array) {
 			var searchState = { left: -1, right: -1, middle: -1, result: null };
 			var searchTimer = null;
@@ -745,10 +997,12 @@
 		
 		_statefulBSearch: function(match, key, sortedArray, state, iterations) {
 			match = match.toLowerCase();
-			var nObjects = sortedArray.length;
 			state.left = (state.left >= 0 ? state.left : 0);
 			state.right = (state.right >= 0 ? state.right : sortedArray.length - 1);
 			state.middle = (state.middle >= 0 ? state.middle : Math.floor(state.right / 2));
+			if (!iterations) {
+				iterations = sortedArray.length;
+			}
 			var i = 0;
 			while (state.left < state.right && i < iterations) {
 				if (sortedArray[state.middle][key].toLowerCase() == match) {
@@ -776,7 +1030,7 @@
 			//console.log('merge ' + contacts.length + ' incoming contacts into current list with ' + this.contacts.length + ' ... ');
 			var newContacts = this.contacts.slice(0); // new copy
 			for (var i = 0; i < contacts.length; i++) {
-				existing = this.searchBy('identifier', contacts[i].identifier);
+				existing = this.searchExactBy('identifier', contacts[i].identifier);
 				if (!existing) {
 					newContacts.push(contacts[i]);
 				}
@@ -943,9 +1197,6 @@
 		
 		_isADuck: true,
 		
-		keySorting_toString: null,
-		
-		
 		setName: function(name) {
 			this.name = name;
 			this.notifyObservers('nameChanged', name);
@@ -972,8 +1223,8 @@
 			return (this.identifier == contact.identifier/* && this['class'] == contact['class']*/);
 		},
 		toString: function() {
-			if (this.keySorting_toString) {
-				return this.keySorting_toString.apply(this);
+			if (this.toField.currentSortKey) {
+				return this[this.toField.currentSortKey];
 			}
 			return this.name;
 		}
