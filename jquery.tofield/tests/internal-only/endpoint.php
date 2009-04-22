@@ -10,13 +10,23 @@ $chunks = explode('gNameData.', $js);
 
 $output = array();
 
+$domains = array(
+	'gmail.com',
+	'aol.com',
+	'yahoo.com',
+	'hotmail.com'
+);
+
 foreach ($chunks as $chunk) {
 	$json = json_decode(substr($chunk, strpos($chunk, '{'), strrpos($chunk, ';') - strpos($chunk, '{')));
 	$array = get_object_vars($json);
 //	echo '<pre>'; var_dump($array); echo '</pre>';
 	if (is_array($array)) {
 		foreach ($array as $name => $data) {
-			$data->identifier = strtolower($data->name.'@'.substr(md5($data->name), 0, strlen($data->name) % ord($data->name[0])).'.dev');
+			//$data->identifier = strtolower($data->name.'@'.substr(md5($data->name), 0, strlen($data->name) % ord($data->name[0])).'.dev');
+			$data->domain = $domains[strlen($data->name) % count($domains)];
+			$data->identifier = strtolower($data->name.'@'.$data->domain);
+			$data->customClass = $data->origin;
 			unset($data->rank_in_2000s);
 			$output[] = $data;
 		}

@@ -1,5 +1,5 @@
 /*
- * jQuery To: Field plugin 1.0
+ * jQuery To: Field Plugin 1.0
  *
  * @todo: add real links
  * http://crowdfavorite.com/
@@ -17,7 +17,6 @@
 ;(function($) {
 
 	$.fn.toField = function(options) {
-		
 		// build main options before element iteration
 		var opts = $.extend(true, {}, $.fn.toField.defaults, options);
 		// iterate over matched elements
@@ -30,8 +29,8 @@
 
 	// Globally overridable static methods. Set before first toField initialization.
 	// During execution, `this` will refer to the appropriate ToField object.
-/*
-	$.fn.toField.search = function(text) {
+
+	$.fn.toField.linearFragmentSearch = function(text) {
 		var results = [];
 		//console.log(this.contacts.length + ' contacts');
 		for (var i = 0; i < this.contacts.length; i++) {
@@ -44,21 +43,28 @@
 		}
 		return results;
 	};
-*/
+
+
 	/**
 	 * 
 	 */
 	$.fn.toField.search = function(text) {
 		var results = [];
-		
-		for (var key in this.options.searchKeys) {
-			if (results.length > this.options.maxSuggestions) {
-				break;
+		var suggestionsToGo = this.options.maxSuggestions;
+		for (var i = 0; i < this.searchOrder.length && suggestionsToGo > 0; i++ ) {
+			key = this.searchOrder[i];
+			if (this.options.searchKeys.search) {
+				// feature not ready
+				//var hits = this.options.searchKeys.search(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
+				var hits = this.options.searchKeys.search(key, text, suggestionsToGo);
 			}
-			//console.log('searching by key: ' + key);
-			var hits = this.searchPrefixBy(key, text);
+			else {
+				// feature not ready
+				//var hits = this.searchPrefixBy(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
+				var hits = this.searchPrefixBy(key, text, suggestionsToGo);
+			}
 			if (hits) {
-				// filter out already-found. there may be a better way to do this ...
+				// filter out already-found. seems there should be a better way to do this ...
 				hits = $.grep(hits, function(contact) {
 					for (var k = 0; k < results.length; k++) {
 						if (results[k].isEqualToContact(contact)) {
@@ -67,31 +73,10 @@
 					}
 					return true;
 				});
+				suggestionsToGo -= hits.length;
 				results = results.concat(hits);
 			}
 		}
-		/*
-		for (var i = 0; i < this.options.searchKeys.length; i++) {
-			if (results.length >= this.options.maxSuggestions) {
-				break;
-			}
-			var key = this.options.searchKeys[i];
-			var hits = this.searchPrefixBy(key, text);
-			if (hits) {
-				hits = $.grep(hits, function(contact) {
-					for (var k = 0; k < results.length; k++) {
-						if (results[k].isEqualToContact(contact)) {
-							return false;
-						}
-					}
-					return true;
-				});
-				results = results.concat(hits);
-			}
-		}
-		* */
-		//console.log('search results: ');
-		//console.dir(results);
 		return results;
 	};
 
@@ -106,15 +91,16 @@
 	$.fn.toField.getResultItemMarkup = function(contact) {
 		return '\
 			<li class="search-result">\
-				<div class="contact-name">' + contact.name + '</div>\
+				' + (!contact.isMirror() ? '<div class="contact-name">' + contact.name + '</div>' : '') + '\
 				<div class="contact-identifier">&lt;' + contact.identifier + '&gt;</div>\
 			</li>';
 	};
 	
 	$.fn.toField.getContactTokenMarkup = function(contact) {
+		var customClass = contact.getCustomClass();
 		return '\
-			<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (contact['class'].length ? ' ' + contact['class'] : '') + '">\
-				' + (contact.name.length ? contact.name : contact.identifier) + '\
+			<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
+				' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
 			</a>';
 	};	
 
@@ -132,31 +118,22 @@
 		},
 		maxTokenRows: 4,
 		maxSuggestions: 10,
+		maxSuggestionRows: 5,
 		acceptAdHoc: true,
 		search: $.fn.toField.search,
 		sort: $.fn.toField.sort,
-		idleDelay: 200,
+		idleDelay: 100,
+		scrollbarSize: 18,
 		searchKeys: {
 			name: {
 				search: null,
-				caseSensitive: false,
-				weight: .5
+				order: 1,
 			},
 			identifier: {
 				search: null,
-				caseSensitive: false,
-				weight: .5
+				order: 2
 			}
 		},
-		/*
-		searchKeys: [
-			'name',
-			'identifier'
-		],
-		coreSearchKeys: [
-			'name',
-			'identifier'
-		],*/
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
 		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
 	};	
@@ -238,54 +215,7 @@
 		}
 		return event;
 	};
-/*
-	var clone = function(o, fBindTarget) {
-		var r = null;
-		if (typeof o == 'function') {
-			r = o;
-			if (fBindTarget) {
-				r = o._cfBind(fBindTarget);
-			}
-		}
-		else if (typeof o == 'object' && !o.nodeType) {
-			if ('length' in o) {
-				r = [];
-				var n = o.length;
-				for (var i = 0; i < n; i++) {
-					r.push(arguments.callee(o[n]));
-				}
-			}
-			else {
-				r = {};
-				for (var p in o) {
-					r[p] = arguments.callee(o[p]);
-				}
-			}
-		}
-		else {
-			r = o;
-		}
-		return r;
-	};
-*/
-/*
-	var dimensions = function(jqElement) {
-		var dim = {
-			padding: {
-				top: jqElement.css('padding-top'),
-				bottom: jqElement.css('padding-bottom'),
-				left: jqElement.css('padding-left'),
-				right: jqElement.css('padding-right')
-			},
-			margin: {
-				top: jqElement.css('margin-top'),
-				bottom: jqElement.css('margin-bottom'),
-			}
-		}
 
-	};
-*/
-	// 
 	/**
 	 * Following D. Crockford's "object" function. Sorta.
 	 */
@@ -305,18 +235,6 @@
 		for (var key in this.options.searchKeys) {
 			this.sortedContacts[key] = [];
 		}
-		/*
-		for (var i = 0; i < this.options.searchKeys.length; i++) {
-			this.sortedContacts[this.options.searchKeys[i]] = [];
-		}
-		* */
-		/*
-		for (var i = 0; i < this.options.coreSearchKeys.length; i++) {
-			this.sortedContacts[this.options.coreSearchKeys[i]] = [];
-		}
-		*/
-		//console.dir(this.sortedContacts);
-		//this.observers['input_' + this.jqFormInput.attr('name')] = this.jqFormInput.attr('name') + ' wuz here';
 
 		// overridable methods will be defaults (global, defined below) or user-supplied. 
 		// peel off a copy of each, bound to this instance.
@@ -325,17 +243,20 @@
 		this.getResultItemMarkup = options.getResultItemMarkup._cfBind(this);
 		this.getContactTokenMarkup = options.getContactTokenMarkup._cfBind(this);
 		
-		this.setContacts(options.contacts);
-		
-		//console.dir(this.contacts);
+		if (typeof options.contacts == 'function') {
+			this.setContacts(options.contacts());
+		}
+		else {
+			this.setContacts(options.contacts);
+		}
 		
 		this._windowKeyDownHandler = null;
 		this._mouseOverSearchResultsList = false;
 		//this._windowMouseDownHandler = null;
 		this._searchResultsShown = false;
 
-		var w = jqFormInput.width();
-		var h = jqFormInput.height();
+		var w = jqFormInput.innerWidth();
+		var h = jqFormInput.innerHeight();
 		this.jqContainer = $('<div class="to-field"></div>').width(w).height(h);
 		jqFormInput.hide().before(this.jqContainer);
 		this.jqContainer.mousedown(this.handleMouseDown._cfBind(this));
@@ -343,32 +264,30 @@
 
 		this.addObserver('searchTextChanged', this.handleSearchTextChanged._cfBind(this));
 		this.addObserver('searchCompleted', this.handleSearchCompleted._cfBind(this));
-		this.addObserver('contactsCollectionChanged', this.handleContactCollectionChanged._cfBind(this));
-
+		this.calculateSearchParams();
 		return this;
 	};
 
 	$.extend(true, ToField.prototype, Observable, {
 		contacts: [],
+		searchResults: [],
+		selectedTokens: [],
+		searchHits: {},
+		searchOrder: [],
 		jqContainer: null,
 		jqFormInput: null,
 		jqInlineInput: null,
 		jqInlineInputContainer: null,
-		widget: null,
 
 		jqHighlightedResult: null,
 		jqResultsList: null,
 		mirrorContact: null,
-		searchResults: [],
 		searchText: '',
 		keydownTimer: -1,
+		currentSortKey: null,
 
 		options: {},
 
-		selectedTokens: [],
-		
-		currentSortKey: null,
-		
 		getFormName: function() {
 			return this.jqFormInput.attr('name');
 		},
@@ -377,7 +296,6 @@
 			//console.log('mouse down in ' + this.jqFormInput.attr('name'));
 			if (event.target == this.jqContainer.get(0) || event.target == this.jqInlineInputContainer.get(0)) {
 				this.insertInlineInput();
-				//stopEvent(event);
 			}
 		},
 		handleMouseUp: function(event) {
@@ -385,6 +303,9 @@
 
 		createResultListItem: function(contact) {
 			var jqResult = $(this.getResultItemMarkup(contact));
+			if (contact.customClass.length) {
+				jqResult.addClass(contact.customClass);
+			}
 			var toField = this;
 			jqResult.contact = contact;
 			jqResult.eventHandlers = {
@@ -400,7 +321,6 @@
 					}, 100);
 				},
 				click: function(event) {
-					//console.log(jqResult.contact.name + ' clicked');
 					jqResult.contact.select();
 				}
 			};
@@ -412,8 +332,8 @@
 		
 		insertInlineInput: function() {
 			var i = this.getInlineInputContainer();
+			i.width(this.jqContainer.innerWidth() - this.options.scrollbarSize);
 			this.jqContainer.append(i);
-			//this.jqContainer.scrollTo(0, this.jqContainer.getScrollSize().y);
 			setTimeout((function() {
 				this.jqInlineInput.focus();
 			})._cfBind(this), 10);
@@ -457,29 +377,26 @@
 					this.setSearchText(value);
 				}
 			})._cfBind(this));
-			/*
-			this.addEvent('searchTextChanged', (function(text) {
-				this.set('value', text);
-			}).bind(this.jqInlineInput));
-			*/
-			/*
-			this.jqInlineInput.blur((function() {
+			
+			this.jqInlineInput.blur((function(event) {
+				//console.log(event.target);
 				setTimeout((function() {
 					if (!this._mouseOverSearchResultsList) {	// yay ie.
-						if (this.jqInlineInput.val().length) {
-							this.selectHighlightedResult();
-						}
+						//if (this.jqInlineInput.val().length) {
+						//	this.selectHighlightedResult();
+						//}
 						this.hideSearchResults();
 					}
 				})._cfBind(this), 1);
 			})._cfBind(this));
+			
 			this.jqInlineInput.focus((function() {
 				//this._deselectTokens();
 				if (this.searchText.length) {
 					this.showSearchResults();
 				}
 			})._cfBind(this));
-			* */
+
 			this.jqInlineInputContainer.append(this.jqInlineInput);
 			return this.jqInlineInputContainer;
 		},
@@ -494,19 +411,21 @@
 
 			// this hackery is for ie, which removes focus from the 
 			// input box when you click on a scroll bar.
-			/*
-			this.jqResultsList.addEvent('mouseenter', (function(event) {
-				this._mouseOverSearchjqResultsList = true;
-			}).bind(this));
-			this.jqResultsList.addEvent('mouseleave', (function(event) {
+
+			this.jqResultsList.mouseenter((function(event) {
+				this._mouseOverSearchResultsList = true;
+			})._cfBind(this));
+			this.jqResultsList.mouseleave((function(event) {
 				this._mouseOverSearchResultsList = false;
+				/*
 				if (Browser.Engine.trident) {
 					setTimeout((function() {
 						this.inputElement.focus();
 					}).bind(this), 10);
 				}
-			}).bind(this));
-			*/
+				*/
+			})._cfBind(this));
+
 			// note: there doesn't appear to be a way to detect a click on the scroll bar itself.
 			// soo... we're kind of screwed here. using the scroll bar without generating a mouseleave event
 			// will keep the input blurred, so keyboard commands won't work. ie is teh awesomeness.
@@ -515,8 +434,8 @@
 		
 		createMirrorContact: function() {
 			var c = construct(MirrorContact, [{ name: '', identifier: '' }, this]);
-			c.jqResultItem = this.createResultListItem(c);
-			c.jqResultItem.addClass('mirror');
+			//c.jqListItem = this.createResultListItem(c);
+			//c.jqResultItem.addClass('mirror');
 			var toField = this;
 			c.addObserver(
 				'selectionStateChanged',
@@ -536,18 +455,8 @@
 		selectHighlightedResult: function() {
 			if (this.jqHighlightedResult) {
 				var i = this.getHighlightedResultIndex();
-				//console.log(this.searchResults[i]);
 				this.searchResults[i].select();
 			}
-			/*
-			if (this.jqHighlightedResult && this.jqHighlightedResult.contact) {
-				if (this.jqHighlightedResult.contact.identifier.length) {
-					this.jqHighlightedResult.contact.select();
-					//this.hideSearchResults();
-				}
-			}
-			* */
-			//this.setSearchText('');
 			setTimeout((function() {
 				this.insertInlineInput();
 			})._cfBind(this), 10);
@@ -557,14 +466,15 @@
 		 * First argument can be a jQuery-ed list item or an index into the list.
 		 */
 		highlightResult: function(jqItem, scrollBehavior) {
+			if (!this._searchResultsShown) {
+				return;
+			}
 			var jqList = this.getSearchResultsList();
-			//console.log('highlight ' + jqItem);
 			if (typeof jqItem == 'number') {
-				//contact = this.searchResults[jqItem];// || this.getMirrorContact();
 				jqItem = $(jqList.children('li')[jqItem]);
 			}
 			
-			$('li', jqList).removeClass('highlighted');
+			jqList.children('li').removeClass('highlighted');
 			
 			this.jqHighlightedResult = jqItem;
 			//console.log(jqItem);
@@ -572,16 +482,18 @@
 			if (this.jqHighlightedResult) {
 				this.jqHighlightedResult.addClass('highlighted');
 				if (scrollBehavior == undefined || scrollBehavior == 'scroll') {
-					var itemPos = this.jqHighlightedResult.position().left;
-					var itemHeight = this.jqHighlightedResult.height();
+					var itemPos = this.jqHighlightedResult.position().top;
+					var itemHeight = this.jqHighlightedResult.outerHeight();
 					var scrollPos = jqList.scrollTop();
-					var listHeight = jqList.height();
-					itemPos += (!$.support.boxModel ? scrollPos : 0);
-					if (itemPos < scrollPos) {
-						jqList.scrollTop(itemPos);
+					var itemRelativePos = itemPos + scrollPos;
+					var listHeight = jqList.innerHeight();
+					//itemPos += (!$.support.boxModel ? scrollPos : 0);
+					if (itemPos < 0) {
+						jqList.scrollTop(itemRelativePos);
 					}
-					if (itemPos + itemHeight > scrollPos + listHeight) {
-						jqList.scrollTop(scrollPos + ((itemPos + itemHeight) - (scrollPos + listHeight)));
+					if (itemPos + itemHeight > listHeight) {
+						jqList.scrollTop(itemRelativePos + itemHeight - listHeight);
+						//jqList.scrollTop(scrollPos + ((itemPos + itemHeight) - (scrollPos + listHeight)));
 					}
 				}
 			}
@@ -592,44 +504,62 @@
 		},
 		
 		getHighlightedResultIndex: function() {
+			if (!this.jqHighlightedResult) {
+				return -1;
+			}
 			var i = -1;
-			this.jqResultsList.children('li').each(function(index) {
+			var jqList = this.getSearchResultsList();
+			jqList.children('li').each(function(index) {
 				if ($(this).hasClass('highlighted')) {
 					i = index;
 					return false;
 				}
 			});
-			/*
-			if (this.jqHighlightedResult && this.jqHighlightedResult.contact) {
-				for (var i = 0; i < this.searchResults.length; i++) {
-					if (this.searchResults[i] == this.jqHighlightedResult.contact) {
-						return i;
-					}
-				}
-			}
-			*/
 			return i;
 		},
 		
 		showSearchResults: function() {
 			var jqList = this.getSearchResultsList();
-			jqList.fadeIn('fast');
-			jqList.width(this.jqContainer.width());
-			var inputPosition = this.jqContainer.offset();
+			
+			// jquery's remove() (invoked via jqList.empty()) will remove event handlers.
+			jqList.children('li').each(function() {
+				if (this.parentNode) {
+					this.parentNode.removeChild(this);
+				}
+			});
+		
+			if (jqList.css('display') == 'none') {
+				jqList.height(1).css({
+					overflow: 'hidden'
+				}).show();
+			}
+			
+			var h = 0;
+			for (var i = 0; i < this.searchResults.length; i++) {
+				var jqItem = this.searchResults[i].getResultListItem();
+				jqList.append(jqItem);
+				h += jqItem.outerHeight();
+				if (i < this.options.maxSuggestionRows) {
+					jqList.height(h);
+				}
+				else if (i == this.options.maxSuggestionRows) {
+					jqList.css('overflow', 'auto');
+				}
+			}
+			jqList.width(this.jqContainer.outerWidth());
+			var containerOffset = this.jqContainer.offset();
 			jqList.css({
-				top: (inputPosition.top + this.jqContainer.height()) + 'px',
-				left: (inputPosition.left) + 'px'
+				top: (containerOffset.top + this.jqContainer.outerHeight()) + 'px',
+				left: (containerOffset.left) + 'px'
 			});
 			this._searchResultsShown = true;
 		},
 		hideSearchResults: function() {
-			this.jqHighlightedResult = null;
 			this.getSearchResultsList().fadeOut('fast');
 			this._searchResultsShown = false;
 		},
 		
 		handleSearchTextChanged: function(text) {
-			//console.log('handleSearchTextChanged');
 			if (text.length) {
 				this.dispatchSearch(text);
 			}
@@ -642,6 +572,9 @@
 		},
 		
 		highlightPrevResult: function() {
+			if (!this.jqHighlightedResult) {
+				return;
+			}
 			var current = this.getHighlightedResultIndex();
 			if (current == -1) {
 				this.highlightResult(this.searchResults.length - 1);
@@ -652,6 +585,9 @@
 		},
 
 		highlightNextResult: function() {
+			if (!this.jqHighlightedResult) {
+				return;
+			}
 			var current = this.getHighlightedResultIndex();
 			if (current == -1) {
 				//this.highlightResult(this.searchResults.length - 1);
@@ -671,16 +607,36 @@
 			this.searchText = text;
 			this.notifyObservers('searchTextChanged', text);
 		},
-				
+
+		getSearchText: function() {
+			return this.searchText;
+		},
+
 		sortKeyedContacts: function() {
 			for (var key in this.sortedContacts) {
 				this.sortedContacts[key] = this.contacts.slice(0);
-//				console.log('about to sort by ' + key);
 				this.currentSortKey = key;
 				this.sortedContacts[key].sort();
-//				console.dir(this.sortedContacts[key].slice(0, 30));
 			}
 			this.currentSortKey = null;
+		},
+		
+		calculateSearchParams: function() {
+			// try to normalize stuff
+			var sum = 0;
+			var order = [];
+			for (var key in this.options.searchKeys) {
+				sum += this.options.searchKeys[key].hits || 0;
+				order.push({ key: key, order: this.options.searchKeys[key].order || Number.MAX_VALUE });
+			}
+			//console.dir(order);
+			order.sort(function(a, b) { return a.order - b.order });
+			this.searchOrder = $.map(order, function(o) { return o.key; });
+			for (var key in this.options.searchKeys) {
+				this.searchHits[key] = Math.floor(((this.options.searchKeys[key].hits || 0) * this.options.maxSuggestions) / sum);
+			}
+			//console.dir(this.searchHits);
+			//console.dir(this.searchOrder);
 		},
 		
 		sendAjaxRequest: function(text) {
@@ -699,7 +655,6 @@
 		},
 		
 		dispatchSearch: function(text) {
-
 			var f = (function() {
 				if (this.options.ajax.endpoint) {
 					this.sendAjaxRequest(text);
@@ -776,11 +731,12 @@
 			this.sort();
 		},
 		
-		searchPrefixBy: function(key, text) {
+		searchPrefixBy: function(key, text, maxHits) {
+			maxHits = (maxHits && maxHits > 0) ? maxHits : 0;
 			if (this.sortedContacts[key]) {
 				//console.log('------ key search: searching ' + key + ' for ' + text + '------');
 				//console.dir(this.sortedContacts[key]);
-				var range = this.getRangeWithPrefix(text, key, this.sortedContacts[key]);
+				var range = this.getRangeWithPrefix(text, key, this.sortedContacts[key], maxHits);
 				if (range.found) {
 					//console.log('found:');
 					//console.dir(this.sortedContacts[key].slice(range.start, range.end + 1));
@@ -790,93 +746,56 @@
 			return null;
 		},
 		
-		getRangeWithPrefix: function(prefix, key, array) {
+		getRangeWithPrefix: function(prefix, key, array, maxHits) {
+			maxHits = (maxHits && maxHits > 0) ? maxHits : 0;
 			var left = 0;
 			var right = array.length - 1;
 			prefix = prefix.toLowerCase();
 			var found = lastFound = middle = -1;
 			// binary search on first letter, then binary search on second letter within
 			// the range of all names with the first letter ... and so on.
-			//console.log('walking through prefix ' + prefix);
+			// console.log('walking through prefix ' + prefix + ' on array with items (' + ($.map(array, function(item) { return item[key]; })).join(', ') + ')');
 			for (var prefixIndex = 0; prefixIndex < prefix.length; prefixIndex++) {
-				//console.log('calling _binaryPrefixSearch with left: ' + left + ', right: ' + right + ', prefixIndex: ' + prefixIndex + ', key: ' + key);
+				// console.log('calling _binaryPrefixSearch with left: ' + left + ', right: ' + right + ', prefixIndex: ' + prefixIndex + ', key: ' + key);
 				found = this._binaryPrefixSearch(left, right, prefixIndex, prefix, key, array);
 				if (found != -1) {
 					// found is an index somwhere in a possible range of items with this prefix. expand out both edges to capture
 					// all with the prefix. edges should be inclusive. 
 					// (that is, it will be true that array[left][key] and array[right][key] will both be prefixed with passed prefix.)
 					// the next call to binaryPrefixSearch will be confined to this narrower range.
-					//console.log('found char ' + prefixIndex + ' of ' + prefix + ' in key ' + key + ' at index ' + found + ', expanding...');
+					// console.log('found char ' + prefixIndex + ' of ' + prefix + ' in key ' + key + ' at index ' + found + ', expanding...');
 					left = right = found;
-//					if (left - 1 >= 0)
-//						console.log('array[left - 1][key].charAt(prefixIndex).toLowerCase(): ' + array[left - 1][key].charAt(prefixIndex).toLowerCase() + ', prefix.charAt(prefixIndex): ' + prefix.charAt(prefixIndex));
 //					while ((left - 1 >= 0) && (array[left - 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) left--;
 //					while ((right + 1 < array.length) && (array[right + 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) right++;
 
-//console.log('prefix: ' + prefix + ', prefixIndex: ' + prefixIndex + ', prefix.substr(0, prefixIndex): ' + prefix.substr(0, prefixIndex));
 					while ((left - 1 >= 0) && array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
-						//console.log('expanding left - 1. array[left - 1][key] = ' + array[left - 1][key] + ', prefix.substr(0, prefixIndex + 1) = ' + prefix.substr(0, prefixIndex + 1) + ', array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
+						// console.log('expanding left - 1. array[left - 1][key] = ' + array[left - 1][key] + ', prefix.substr(0, prefixIndex + 1) = ' + prefix.substr(0, prefixIndex + 1) + ', array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
 						left--
 					};
 					while ((right + 1 < array.length) && array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
-						//console.log('expanding right + 1. array[right + 1][key] = ' + array[right + 1][key] + ', prefix.substr(0, prefixIndex) = ' + prefix.substr(0, prefixIndex + 1) + ', array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
+						// console.log('expanding right + 1. array[right + 1][key] = ' + array[right + 1][key] + ', prefix.substr(0, prefixIndex) = ' + prefix.substr(0, prefixIndex + 1) + ', array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
 						right++
 					};
-					//console.log('... range with prefix ' + prefix + ' is now (left, found, right): ' + left + ', ' + found + ', ' + right + ', (' + array[left][key] + ', ' + array[found][key] + ', ' + array[right][key] + ')');
+					// console.log('... range with prefix ' + prefix + ' is now (left, found, right): ' + left + ', ' + found + ', ' + right + ', (' + array[left][key] + ', ' + array[found][key] + ', ' + array[right][key] + ')');
 					lastFound = found;
 				}
 				else {
-					//console.log('did not find char ' + prefixIndex + ' of prefix ' + prefix +  ' in key ' + key + ', breaking with found = -1');
+					// console.log('did not find char ' + prefixIndex + ' of prefix ' + prefix +  ' in key ' + key + ', breaking with found = -1');
 					break;
 				}
 				middle = found;
 			}
 			
 			if (found >= 0) {
-				//console.log('made it through ' + prefixIndex + ' chars of prefix, returning found == true, start: ' + left + ' (' + array[left][key] + '), end: ' + right + ' (' + array[right][key] + ')');
-				return { found: true, start: left, end: right }
+				// console.log('made it through ' + prefixIndex + ' chars of prefix, returning found == true, start: ' + left + ' (' + array[left][key] + '), end: ' + right + ' (' + array[right][key] + ')');
+				return { found: true, start: left, end: (maxHits > 0 ? Math.min(left + maxHits - 1, right) : right) }
 			}
-			//console.log('could not find any items with prefix ' + prefix + ' in key ' + key);
-			return { found: false, start: left, end: right };
-			
-			if (prefixIndex > 0 && found >= 0) {
-				var exact = -1;
-				// expand out range on prefix for as far as we got through the prefix
-				//console.log('found middle element for prefix ' + prefix + ' in key ' + key + ': ' + array[middle] + ', expanding ...');
-				left = right = middle;
-				while ((left - 1 > 0) && (array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex)) == 0)) {
-					//console.log('index of ' + prefix.substr(0, prefixIndex) + ' in ' + array[left - 1][key].toLowerCase() + ' == 0');
-					left--;
-					/*
-					if (array[left][key].toLowerCase() == prefix) {
-						exact = left;
-						break;
-					}
-					* */
-				}
-				while ((right + 1 < array.length) && (array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex)) == 0)) {
-					//console.log('index of ' + prefix.substr(0, prefixIndex) + ' in ' + array[right + 1][key].toLowerCase() + ' == 0');
-					right++;
-					/*
-					if (array[right][key].toLowerCase() == prefix) {
-						exact = right;
-						break;
-					}
-					* */
-				}
-				if (exact >= 0) {
-					//console.log('... done. found exact match: ' + array[exact][key]);
-					return {found: true, start: exact, end: exact };
-				}
-				//console.log('... done. ' + (right - left) + ' in range, ' + array[left][key] + ' to ' + array[right][key]);
-				return { found: true, start: left, end: right };
-			}
-			//console.log('could not find prefix ' + prefix + ' in key ' + key);
+			// console.log('could not find any items with prefix ' + prefix + ' in key ' + key);
 			return { found: false, start: left, end: right };
 		},
 		
 		_binaryPrefixSeachCmp: function(obj, prefix, charIndex, key) {
-			//console.log('>> comparing char ' + charIndex + ' of ' + obj[key] + ' and ' + prefix + ' ... ');
+			// console.log('>> comparing char ' + charIndex + ' of ' + obj[key] + ' and ' + prefix + ' ... ');
 			if (!obj[key]) {
 				//console.log('key: ' + key);
 				//console.dir(obj);
@@ -886,7 +805,7 @@
 			prefix = prefix.toLowerCase();
 			if (charIndex >= objName.length || charIndex >= prefix.length) {
 				r = objName.length > prefix.length ? 1 : -1;
-				//console.log('>> result: ' + r);
+				// console.log('>> result: ' + r);
 				return r;
 			}
 			r = (
@@ -899,7 +818,7 @@
 		},
 		
 		_binaryPrefixSearch: function(left, right, charIndex, prefix, key, array) {
-//console.log('running binary search between ' + array[left][key] + ' and ' + array[right][key] + ' for char ' + charIndex + ' of prefix ' + prefix);
+			//console.log('running binary search between ' + array[left][key] + ' and ' + array[right][key] + ' for char ' + charIndex + ' of prefix ' + prefix);
 			if (right == left) {
 				if (this._binaryPrefixSeachCmp(array[right], prefix, charIndex, key) == 0) {
 					//console.log(' ... right == left and it\'s a match, returning right, ' + array[right][key]);
@@ -909,7 +828,6 @@
 				return -1;
 			}
 			while (right > left /*&& (right - left > 2)*/) {
-				// floor will keep us from ever seeing right; check it explicitly
 				var middle = Math.floor((left + right) / 2);
 				//console.log('>> left, middle, right : ' + left + ', ' + middle + ', ' + right + ' (' + array[left][key] +', ' + array[middle][key] + ', ' + array[right][key] + ')');
 				if (right - left == 1) {
@@ -964,9 +882,8 @@
 			var searchTimer = null;
 			var found = false;
 			var sleep = 30;
-			var iterations = 20;	// should be plenty
 			
-			searchState = this._statefulBSearch(match, key, array, searchState, iterations);
+			searchState = this._statefulBSearch(match, key, array, searchState);
 			if ((searchState.left >= 0 && (searchState.left == searchState.middle || searchState.right == searchState.middle)) || searchState.result) {
 				// finished searching
 				if (searchState.result) {
@@ -1051,34 +968,21 @@
 		
 		handleSearchCompleted: function(results) {
 			//console.log('handleSearchCompleted');
-			var jqList = this.getSearchResultsList();
 			var oldHighlightedIndex = this.getHighlightedResultIndex();
 			var oldHighlightedContact = this.searchResults[oldHighlightedIndex];
-			//console.log(this.getHighlightedResultIndex() + ': ' + oldHighlightedContact);
-			jqList.empty();
+
 			this.searchResults = [];
 			if (this.options.acceptAdHoc) {
 				this.searchResults.push(this.getMirrorContact());
-				jqList.append(this.getMirrorContact().jqResultItem);
 			}
-			// skip the mirror
 			for (var i = 0; i < results.length; i++) {
 				if (!results[i].isSelected()) {
 					this.searchResults.push(results[i]);
-					jqList.append(this.createResultListItem(results[i]));
 				}
-				/*
-				if (list.height() > availableHeight) {
-					list.setStyle('height', availableHeight + 'px');
-				}
-				else {
-					list.setStyle('height', 'auto');
-				}
-				*/
 			}
 			
 			this.showSearchResults();
-			
+						
 			if ((results.length == 0 && this.options.acceptAdHoc) || !oldHighlightedContact) {
 				this.highlightResult(0);	// mirror
 			}
@@ -1094,9 +998,6 @@
 			else if (oldHighlightedContact) {
 				var found = false;
 				for (var i = 0; i < this.searchResults.length; i++) {
-//					if (!this.searchResults[i].isEqualToContact) {
-//						console.dir(this.searchResults[i]);
-//					}
 					if (this.searchResults[i].isEqualToContact(oldHighlightedContact)) {
 						this.highlightResult(i);
 						found = true;
@@ -1115,9 +1016,8 @@
 		handleContactSelectionStateChanged: function(change) {
 			if (change.state == true) {
 				if (change.contact == this.mirrorContact) {
-					// next call to get will create a new one.
 					this.contacts.push(this.mirrorContact);
-					this.mirrorContact = null;
+					this.mirrorContact = null;		// next call to get will create a new one
 				}
 				var token = construct(Token, [change.contact, this]);
 				token.addObserver('tokenRemoved', this.layoutContainer._cfBind(this));
@@ -1125,6 +1025,7 @@
 				token.addBefore(this.jqInlineInputContainer);
 				this.setSearchText('');
 				this.hideSearchResults();
+				this.jqHighlightedResult = null;
 				this.jqInlineInput.focus();
 			}
 			var selected = [];
@@ -1137,14 +1038,21 @@
 		},
 
 		layoutContainer: function() {
-			var scrollbarSize = 20;
 			var containerHeight = this.jqContainer.innerHeight();
-			var contentHeight = rowsOver = tokenRowHeight = rows = 0;
+			var contentHeight = 0;
+			var tokenRowHeight = 0;
+			var rows = 0;
 			var inputRowHeight = this.jqInlineInputContainer.outerHeight(true);
 			var contentHeight = inputRowHeight;
 			var lastY = -1;
+			var pos = 0;
 			this.jqContainer.children().each(function() {
 				var jqThis = $(this);
+				var maxWidth = jqThis.parent().innerWidth();
+				if (jqThis.outerWidth() > maxWidth) {
+					//console.log('width: ' + jqThis.outerWidth() + ' > maxWidth: ' + maxWidth);
+					// truncate?
+				}
 				if (jqThis.position().top != lastY) {
 					rows++;
 					if (jqThis.hasClass('inline-input-container')) {
@@ -1162,38 +1070,33 @@
 				this.jqContainer.css('overflow', 'auto');
 				var inputLeft = this.jqInlineInput.position().left;
 				var diff = this.jqContainer.innerWidth() - (inputLeft + this.jqInlineInput.outerWidth());
-				if (diff < scrollbarSize) {
-					this.jqInlineInput.width(this.jqInlineInput.width() - scrollbarSize);
+				if (diff < this.options.scrollbarSize) {
+					this.jqInlineInput.width(this.jqInlineInput.width() - this.options.scrollbarSize);
 				}
 			}
 			else {
 				this.jqContainer.height((tokenRowHeight * (rows - 1)) + inputRowHeight);
-				//this.jqContainer.css('overflow', 'hidden');
+				this.jqContainer.css('overflow', 'hidden');
+				this.jqContainer.scrollTop(0);
 			}
-		},
-
-		handleContactCollectionChanged: function(collection) {
-			
 		}
 	});
 	
 	var Contact = function(data, toField) {
 		this.toField = toField;
 		$.extend(this, data);
-		//console.log('creating contact ' + data.name);
-		//console.log('constructing contact ' + this.name + ', observers: ');
-		//console.dir(this.observers);
-		//this.observers['contact_' + this.name] = this.name + ' wuz here';
+		var x = this;
+		// if (browser.is.stupid) ... ie6 won't recognize toString() in the prototype, so promote it to local property.
+		this.toString = this._toString;
 		return this;
 	};
-//	console.log('clone of Observable is:');
-//	console.dir(clone(Observable));
 	$.extend(true, Contact.prototype, Observable, {
 		toField: null,
 		name: '',
 		identifier: '',
-		'class': '',
+		customClass: '',
 		selected: false,
+		jqListItem: null,
 		
 		_isADuck: true,
 		
@@ -1204,6 +1107,9 @@
 		setIdentifier: function(identifier) {
 			this.identifier = identifier;
 			this.notifyObservers('identifierChanged', identifier);
+		},
+		getCustomClass: function() {
+			return this.customClass;
 		},
 		select: function() {
 			this.selected = true;
@@ -1216,25 +1122,37 @@
 			this.selected = false;
 			this.notifyObservers('selectionStateChanged', { contact: this, state: false });
 		},
+		isMirror: function() {
+			return false;
+		},
 		isSelected: function() {
 			return this.selected;
 		},
 		isEqualToContact: function(contact) {
-			return (this.identifier == contact.identifier/* && this['class'] == contact['class']*/);
+			return (this.identifier == contact.identifier && this.customClass == contact.customClass);
 		},
-		toString: function() {
+		getResultListItem: function() {
+			if (!this.jqListItem) {
+				this.jqListItem = this.toField.createResultListItem(this);
+			}
+			return this.jqListItem;
+		},
+		clearResultListItem: function() {
+			this.jqListItem = null;
+		},
+		_toString: function() {
 			if (this.toField.currentSortKey) {
 				return this[this.toField.currentSortKey];
 			}
 			return this.name;
 		}
 	});
-	//this.observers[this.name + '_test'] = this.name + ' wuz here';
 
 	var MirrorContact = function(data, toField) {
 		this.superclass.prototype.constructor.apply(this, arguments);
 		this.handleSearchTextChanged = this.handleSearchTextChanged._cfBind(this);	// heh. grumble grumble
 		toField.addObserver('searchTextChanged', this.handleSearchTextChanged);
+		this.handleSearchTextChanged(toField.getSearchText());	// get initial text
 		return this;
 	}
 	$.extend(true, MirrorContact.prototype, Contact.prototype, {
@@ -1243,12 +1161,20 @@
 			this.toField.removeObserver('searchTextChanged', this.handleSearchTextChanged);
 			this.superclass.prototype.select.apply(this);
 		},
+		isMirror: function() {
+			return true;
+		},
+		getResultListItem: function() {
+			if (!this.jqListItem) {
+				var r = this.superclass.prototype.getResultListItem.apply(this);
+				r.addClass('mirror');
+			}
+			return this.superclass.prototype.getResultListItem.apply(this);
+		},
 		handleSearchTextChanged: function(text) {
 			this.setIdentifier(text);
 			this.setName(text);
-			if (this.jqResultItem) {
-				this.jqResultItem.html(this.toField.getResultItemMarkup(this));
-			}
+			this.getResultListItem().html(this.toField.getResultItemMarkup(this))
 		}
 	});
 
@@ -1257,14 +1183,18 @@
 		this.toField = toField;
 		this.jqContainer = toField.jqContainer;
 		contact.addObserver('selectionStateChanged', this.handleContactSelectionStateChanged._cfBind(this));
-		this.jqToken = jqToken = $(toField.getContactTokenMarkup(contact));
+		this.jqToken = $(toField.getContactTokenMarkup(contact));
+		if (contact.getCustomClass().length) {
+			this.jqToken.addClass(contact.getCustomClass());
+		}
+		var token = this;
 		this.jqToken.hover(
 			function(event) {
-				jqToken.addClass('token-hover');
+				token.jqToken.addClass('token-hover');
 			},
 			function(event) {
-				jqToken.removeClass('token-hover');
-				jqToken.removeClass('x-hover');
+				token.jqToken.removeClass('token-hover');
+				token.jqToken.removeClass('x-hover');
 			}
 		);
 		this.jqToken.mousemove(this.handleMouseMove._cfBind(this));
@@ -1293,14 +1223,14 @@
 		pointIsOverX: function(pageX, pageY) {
 			var paddingLeft = parseInt(this.jqToken.css('padding-left'));
 			var paddingRight = parseInt(this.jqToken.css('padding-right'));
-			var w = this.jqToken.width() + (isNaN(paddingRight) ? 0 : paddingRight) + (isNaN(paddingLeft) ? 0 : paddingLeft);
-			var xLeft = w - 20;
+			paddingLeft = isNaN(paddingLeft) ? 0 : paddingLeft;
+			paddingRight = isNaN(paddingRight) ? 0 : paddingRight;
+			var xLeft = this.jqToken.innerWidth() - paddingRight;
 			var elementXPos = this.jqToken.offset().left;
 			return (pageX - elementXPos > xLeft);
 		},
 		
 		handleMouseMove: function(event) {
-			//console.dir(event);
 			if (this.pointIsOverX(event.pageX, event.pageY)) {
 				this.jqToken.addClass('x-hover');
 			}
@@ -1316,5 +1246,22 @@
 			}
 		}
 	});
+
+	if (!Array.prototype.indexOf) {
+		Array.prototype.indexOf = function(elt /*, from*/) {
+			var len = this.length;
+
+			var from = Number(arguments[1]) || 0;
+			from = (from < 0) ? Math.ceil(from) : Math.floor(from);
+			if (from < 0)
+				from += len;
+
+			for (; from < len; from++) {
+				if (from in this && this[from] === elt) return from;
+			}
+			return -1;
+		};
+	}
+
 
 })(jQuery);

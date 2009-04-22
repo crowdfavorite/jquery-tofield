@@ -11,14 +11,14 @@
 		jQuery(document).ready(function() {
 			jQuery('input[name=test-1]').toField({
 				idleDelay:500,
-				contacts: [
+				contacts: function() { return [
 					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' },
 					{ name: 'Edgar Allen Poe', identifier: 'allen@rapping.net' },
 					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' }
-				]
+				];}
 			});
-			/*
+/*
 			jQuery('input[name=test-2]').toField({
 				contacts: [
 					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
@@ -27,6 +27,7 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
+
 			jQuery('input[name=test-3]').toField({
 				contacts: [
 					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
@@ -35,8 +36,9 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
-			
+*/
 			jQuery('input[name=test-4]').toField({
+				maxSuggestions: 15,
 				ajax: {
 					endpoint: '/jquery.tofield/tests/internal-only/endpoint.php',
 					queryExtra: {
@@ -44,38 +46,50 @@
 					}
 				}
 			});
-			*/
-
+			
 			jQuery.get(
 				'/jquery.tofield/tests/internal-only/endpoint.php',
 				{ fullNames: 1 },
 				function(data) {
 					jQuery('input[name=test-5]').toField({
 						contacts: data,
+						idleDelay: 30,
 						searchKeys: {
+							name: { order: 3 },
 							firstName: {},
-							lastName: {},
-							identifier: {}
+							lastName: { order: 2 },
+							identifier: { order: 4 },
+							origin: {},
+							domain: { order: 1 }
 						}
 					});
 				},
 				'json'
 			);
 
-			
-			
 		});
 	</script>
 	
 	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
+	<style type="text/css" media="screen">
+		.Gaelic {
+			background-color:orange;
+		}
+		.Japanese, .Japan {
+			background-color:pink;
+		}
+		.Irish {
+			background-color:lightgreen;
+		}
+		.Greek {
+			background-color:skyblue;
+		}
+
+	</style>
+	
 	<!-- Date: 2009-04-08 -->
 </head>
 <body>
-	<style type="text/css" media="screen">
-		input {
-			display:block;
-		}
-	</style>
 	<form action="" method="get" accept-charset="utf-8">
 		<fieldset>
 			<legend>Form/Fieldset</legend>

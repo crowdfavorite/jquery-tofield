@@ -4,12 +4,18 @@
 	background:#f4f4f4;
 	cursor: text;
 	position:relative;
-	overflow:auto;
+	overflow:hidden;
+	/*overflow:auto;*/
 }
-
+.to-field .input-container {
+	margin:1px 0;
+}
 .to-field input {
 	border:none;
-	background:transparent;	
+	background:transparent;
+	margin: 0;
+	padding: 0;
+	width:100%;
 }
 .to-field input:focus {
 	outline: 0 none;
@@ -23,7 +29,8 @@ ul.search-results {
 	position:absolute;
 	background:#f8f8f8;
 	border:1px solid #eee;
-	padding-left:0;
+	padding:0;
+	margin:0;
 	list-style:none;
 	font-size:12px;
 	font-family: Helvetica, Arial, sans-serif;
@@ -31,12 +38,15 @@ ul.search-results {
 	-webkit-border-radius:4px;
 	-moz-box-shadow: 0px 3px 4px #888;
 	-webkit-box-shadow: 0px 3px 4px #888;
-	opacity:.95;
 	overflow:hidden;
 }
 
 ul.search-results li {
 	padding:5px;
+	overflow:hidden;
+	position:relative;
+	color:#444;
+	font-weight:bold;
 }
 
 ul.search-results li.highlighted {
@@ -46,40 +56,41 @@ ul.search-results li.highlighted {
 ul.search-results li.highlighted .contact-identifier {
 	color:#ddd;
 }
-ul.search-results li.mirror .contact-name {
-	display:none;
-}
 ul.search-results .contact-identifier {
+	font-weight:normal;
 	margin-top:4px;
 	font-size:10px;
 	color:#777;
 }
 
-ul.search-results li.mirror .contact-identifier {
+ul.search-results li.mirror {
 	font-size:12px;
 	color:#333;
 }
-ul.search-results li.highlighted.mirror .contact-identifier {
+ul.search-results li.highlighted.mirror {
 	color:#fff;
 }
 .contact-token {
 	font-family: Helvetica, Arial, sans-serif;
-	font-size:10px;
+	font-size:11px;
 	background: #dfdfdf url(images/close-token.gif) no-repeat right center;
 	-moz-border-radius:3px;
 	-webkit-border-radius:3px;
 	-khtml-border-radius:3px;
 	border-radius:3px;
+	border:1px solid #bbb;
 	float:left;
 	margin:1px 2px 1px 0;
 	padding:2px 23px 2px 3px;
-
+	position:relative;
+	white-space: nowrap;
 }
 a.contact-token, a.contact-token a:hover {
 	text-decoration: none;
 	color:#222;
 }
 .contact-token.token-hover {
+	/*background-color:#dfffdf;*/
 }
 .contact-token.x-hover {
 	background-image: url(images/close-token-active.gif);
