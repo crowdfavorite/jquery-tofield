@@ -18,7 +18,37 @@
 
 	$.fn.toField = function(options) {
 		// build main options before element iteration
+		
+		// special handling for searchKeys:
+		// if the user specifies any of our defaults (name or identifier), we want to use 
+		// that info. otherwise, make sure those two are in front.
+		
+		var normalizedSearchKeys = [];
+		
+		if (options.searchKeys) {
+			$.each($.fn.toField.defaults.searchKeys, function(i, defaultKey) {
+				var inUserSearchKeys = false;
+				defaultKey = normalizeSearchKeyItem(defaultKey);
+				$.each(options.searchKeys, function(i, userKey) {
+					userKey = normalizeSearchKeyItem(userKey);
+					if (userKey.property == defaultKey.property) {
+						inUserSearchKeys = true;
+					}
+				});
+				if (!inUserSearchKeys) {
+					normalizedSearchKeys.push(defaultKey);
+				}
+			});
+			normalizedSearchKeys = normalizedSearchKeys.concat($.map(options.searchKeys, function(key) { return normalizeSearchKeyItem(key); }));
+		}
+		else {
+			normalizedSearchKeys = $.map($.fn.toField.defaults.searchKeys, function(key) { return normalizeSearchKeyItem(key); });
+		}
+		
+		options.searchKeys = normalizedSearchKeys;
+		
 		var opts = $.extend(true, {}, $.fn.toField.defaults, options);
+		
 		// iterate over matched elements
 		return this.each(function() {
 			// build element specific options
@@ -26,6 +56,11 @@
 			var toField = construct(ToField, [$(this), o]);
 		});
 	};
+	
+	
+	var normalizeSearchKeyItem = function(item) {
+		return (typeof item == 'string') ? { property: item } : item;
+	}
 
 	// Globally overridable static methods. Set before first toField initialization.
 	// During execution, `this` will refer to the appropriate ToField object.
@@ -51,11 +86,44 @@
 	$.fn.toField.search = function(text) {
 		var results = [];
 		var suggestionsToGo = this.options.maxSuggestions;
+
+		for (var i = 0; i < this.options.searchKeys.length && suggestionsToGo > 0; i++) {
+			key = this.options.searchKeys[i].property;
+			if (this.options.searchKeys[i].search) {
+				// "hit weights" feature not ready
+				//var hits = this.options.searchKeys[i].search(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
+				//console.log('user-supplied search for key ' + key);
+				var hits = this.options.searchKeys[i].search(this.contacts, key, text, suggestionsToGo);
+				//if (hits) console.log('... found ' + hits.length);
+			}
+			else {
+				// "hit weights" feature not ready
+				//var hits = this.searchPrefixBy(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
+				//console.log('internal search for key ' + key);
+				var hits = this.searchPrefixBy(key, text, suggestionsToGo);
+				//if (hits) console.log('... found ' + hits.length);
+			}
+			if (hits) {
+				// filter out already-found. seems there should be a better way to do this ...
+				hits = $.grep(hits, function(contact) {
+					for (var k = 0; k < results.length; k++) {
+						if (results[k].isEqualToContact(contact)) {
+							return false;
+						}
+					}
+					return true;
+				});
+				suggestionsToGo -= hits.length;
+				results = results.concat(hits);
+			}
+		}
+		
+		
+		
+		/*
 		for (var i = 0; i < this.searchOrder.length && suggestionsToGo > 0; i++ ) {
 			key = this.searchOrder[i];
 			if (this.options.searchKeys.search) {
-				// feature not ready
-				//var hits = this.options.searchKeys.search(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
 				var hits = this.options.searchKeys.search(key, text, suggestionsToGo);
 			}
 			else {
@@ -77,16 +145,10 @@
 				results = results.concat(hits);
 			}
 		}
+		* */
 		return results;
 	};
 
-	/**
-	 * By default, we create a sorted array of our current contacts for every current key in 
-	 * searchKeys.
-	 */
-	$.fn.toField.sort = function() {
-		this.sortKeyedContacts();
-	};
 
 	$.fn.toField.getResultItemMarkup = function(contact) {
 		return '\
@@ -102,38 +164,23 @@
 			<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
 				' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
 			</a>';
-	};	
+	};
+	
+	$.fn.toField.setFormInput = function(contacts, jqInput) {
+		jqInput.val($.map(contacts, function(contact) { return contact.identifier; }).join(','));
+	};
 
 	$.fn.toField.defaults = {
 		contacts: [],
-		ajax: {
-			endpoint: null,
-			queryKeys: {
-				text: 'text',
-				maxSuggestions: 'maxSuggestions'
-			},
-			queryExtra: {
-			},
-			dataType: 'json'
-		},
 		maxTokenRows: 4,
 		maxSuggestions: 10,
 		maxSuggestionRows: 5,
 		acceptAdHoc: true,
-		search: $.fn.toField.search,
-		sort: $.fn.toField.sort,
 		idleDelay: 100,
 		scrollbarSize: 18,
-		searchKeys: {
-			name: {
-				search: null,
-				order: 1,
-			},
-			identifier: {
-				search: null,
-				order: 2
-			}
-		},
+		searchKeys: [ 'name', 'identifier' ],
+		search: $.fn.toField.search,
+		setFormInput: $.fn.toField.setFormInput,
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
 		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
 	};	
@@ -232,22 +279,30 @@
 
 		this.sortedContacts = {};
 		
+		// set up sortedContacts arrays
+		for (var i = 0; i < this.options.searchKeys.length; i++) {
+			// don't sort for properties the user wants to search him/herself
+			if (!this.options.searchKeys[i].search) {
+				this.sortedContacts[this.options.searchKeys[i].property] = [];
+			}
+		}
+		/*
 		for (var key in this.options.searchKeys) {
 			this.sortedContacts[key] = [];
 		}
+		*/
 
 		// overridable methods will be defaults (global, defined below) or user-supplied. 
 		// peel off a copy of each, bound to this instance.
-		this.search = options.search._cfBind(this);
-		this.sort = options.sort._cfBind(this);
+		this.search = options.search._cfBind(this)
 		this.getResultItemMarkup = options.getResultItemMarkup._cfBind(this);
 		this.getContactTokenMarkup = options.getContactTokenMarkup._cfBind(this);
 		
 		if (typeof options.contacts == 'function') {
-			this.setContacts(options.contacts());
+			this.setContacts(options.contacts(), true);
 		}
 		else {
-			this.setContacts(options.contacts);
+			this.setContacts(options.contacts, true);
 		}
 		
 		this._windowKeyDownHandler = null;
@@ -273,11 +328,11 @@
 		searchResults: [],
 		selectedTokens: [],
 		searchHits: {},
-		searchOrder: [],
 		jqContainer: null,
 		jqFormInput: null,
 		jqInlineInput: null,
 		jqInlineInputContainer: null,
+		volatileContacts: false,
 
 		jqHighlightedResult: null,
 		jqResultsList: null,
@@ -290,6 +345,10 @@
 
 		getFormName: function() {
 			return this.jqFormInput.attr('name');
+		},
+		
+		getFormInput: function() {
+			return this.jqFormInput;
 		},
 		
 		handleMouseDown: function(event) {
@@ -343,32 +402,26 @@
 			if (this.jqInlineInputContainer) {
 				return this.jqInlineInputContainer;
 			}
+
 			this.jqInlineInputContainer = $('<div class="inline-input-container"></div>');
 			this.jqInlineInput = $('<input type="text" class="inline-input" />');
 			this.jqInlineInput.keydown((function(event) {
-//				console.dir(event);
 				switch (event.keyCode) {
 					case 38: 	// up
 						this.highlightPrevResult();
-						return false;
-					break;
+					return false;
 					case 40:	// down
 						this.highlightNextResult();
-						return false;
-					break;
-					case 13:	// enter
-						this.selectHighlightedResult();
-						return false;
-					break;
+					return false;
 					case 27:	// esc
 						this.hideSearchResults();
-						return false;
-					break;
+					return false;
+					case 13:	// enter
 					case 188: 	// comma
 						this.selectHighlightedResult();
-						return false;
-					break;
+					return false;
 				}
+				return true;
 			})._cfBind(this));
 			
 			this.jqInlineInput.keyup((function(event) {
@@ -379,19 +432,14 @@
 			})._cfBind(this));
 			
 			this.jqInlineInput.blur((function(event) {
-				//console.log(event.target);
 				setTimeout((function() {
 					if (!this._mouseOverSearchResultsList) {	// yay ie.
-						//if (this.jqInlineInput.val().length) {
-						//	this.selectHighlightedResult();
-						//}
 						this.hideSearchResults();
 					}
 				})._cfBind(this), 1);
 			})._cfBind(this));
 			
 			this.jqInlineInput.focus((function() {
-				//this._deselectTokens();
 				if (this.searchText.length) {
 					this.showSearchResults();
 				}
@@ -564,7 +612,7 @@
 				this.dispatchSearch(text);
 			}
 			else {
-				if (this.options.ajax.endpoint) {
+				if (this.volatileContacts) {
 					this.pruneContacts();
 				}
 				this.hideSearchResults();
@@ -614,7 +662,7 @@
 
 		sortKeyedContacts: function() {
 			for (var key in this.sortedContacts) {
-				this.sortedContacts[key] = this.contacts.slice(0);
+				this.sortedContacts[key] = this.contacts.slice(0);	// make a copy (references only)
 				this.currentSortKey = key;
 				this.sortedContacts[key].sort();
 			}
@@ -624,7 +672,19 @@
 		calculateSearchParams: function() {
 			// try to normalize stuff
 			var sum = 0;
-			var order = [];
+			//var order = [];
+			//this.searchOrder = [];
+			$.each(this.options.searchKeys, (function(i, key) {
+				sum += key.hits || 0;
+				//this.searchOrder.push(key.property);
+			})._cfBind(this));
+			
+			$.each(this.options.searchKeys, (function(i, key) {
+				var hits = key.hits ? key.hits : 0;
+				this.searchHits[key.property] = Math.floor((hits * this.options.maxSuggestions) / sum);
+			})._cfBind(this));
+			
+			/*
 			for (var key in this.options.searchKeys) {
 				sum += this.options.searchKeys[key].hits || 0;
 				order.push({ key: key, order: this.options.searchKeys[key].order || Number.MAX_VALUE });
@@ -635,10 +695,11 @@
 			for (var key in this.options.searchKeys) {
 				this.searchHits[key] = Math.floor(((this.options.searchKeys[key].hits || 0) * this.options.maxSuggestions) / sum);
 			}
+			*/
 			//console.dir(this.searchHits);
 			//console.dir(this.searchOrder);
 		},
-		
+		/*
 		sendAjaxRequest: function(text) {
 			var query = {};
 			for (var k in this.options.ajax.queryKeys) {
@@ -653,14 +714,12 @@
 				this.options.ajax.dataType
 			);
 		},
+		* */
 		
 		dispatchSearch: function(text) {
 			var f = (function() {
-				if (this.options.ajax.endpoint) {
-					this.sendAjaxRequest(text);
-				}
-				else {
-					var results = this.search(text);
+				var results = this.search(text, this.contacts);
+				if (results !== undefined) {
 					this.notifyObservers('searchCompleted', results);
 				}
 				this.keydownTimer = -1;
@@ -670,24 +729,6 @@
 				clearTimeout(this.keydownTimer);
 			}
 			this.keydownTimer = setTimeout(f, this.options.idleDelay);
-/*
-			
-			if (this.options.ajax.endpoint) {
-				var f = (function() {
-					this.sendAjaxRequest(text);
-					this.keydownTimer = -1;
-				})._cfBind(this);
-				
-				if (this.keydownTimer > 0) {
-					clearTimeout(this.keydownTimer);
-				}
-				this.keydownTimer = setTimeout(f, idleDelay);
-			}
-			else {
-				var results = this.search(text);
-				this.notifyObservers('searchCompleted', results);
-			}
-*/
 		},
 		
 		/**
@@ -700,7 +741,11 @@
 			//console.log('pruned ' + (n - this.contacts.length) + ' contacts, now have ' + this.contacts.length + ' contacts' );
 		},
 
-		setContacts: function(contacts) {
+		setContacts: function(contacts, internal) {
+			if (!internal && this.volatileContacts) {
+				// assume that these contacts are here to stay for a while
+				this.volatileContacts = false;
+			}
 			this.pruneContacts();
 			var toField = this;
 			//console.log('setting contacts:');
@@ -727,8 +772,14 @@
 				}
 				//console.log(toField.getFormName() + ' is observing ' + contactObj.name + ' for selectionStateChanged');
 			});
-			this.notifyObservers('contactsCollectionChanged', this.contacts);
-			this.sort();
+			// don't incur the expense of sorting if we're in volatile mode
+			if (!this.volatileContacts) {
+				this.sort();
+			}
+		},
+		
+		sort: function() {
+			this.sortKeyedContacts();
 		},
 		
 		searchPrefixBy: function(key, text, maxHits) {
@@ -871,8 +922,16 @@
 		searchExactBy: function(key, text) {
 			//console.log('search by ' + key + ' for ' + text + ', sorted contacts: ');
 			//console.dir(this.sortedContacts[key]);
-			if (this.sortedContacts[key]) {
-				return this.binarySearch(text, key, this.sortedContacts[key]);
+			if (!this.volatileContacts) { // they are sorted; we can use binary search
+				if (this.sortedContacts[key]) {
+					return this.binarySearch(text, key, this.sortedContacts[key]);
+				}
+			}
+			// resort to a linear search
+			for (var i = 0; i < this.contacts.length; i++) {
+				if (this.contacts[i][key] == text) {
+					return this.contacts[i];
+				}
 			}
 			return null;
 		},
@@ -942,28 +1001,31 @@
 			return state;
 		},
 		
-		mergeContacts: function(contacts) {
+		mergeContacts: function(data) {
 			var existing = null;
 			//console.log('merge ' + contacts.length + ' incoming contacts into current list with ' + this.contacts.length + ' ... ');
 			var newContacts = this.contacts.slice(0); // new copy
-			for (var i = 0; i < contacts.length; i++) {
-				existing = this.searchExactBy('identifier', contacts[i].identifier);
+			for (var i = 0; i < data.length; i++) {
+				existing = this.searchExactBy('identifier', data[i].identifier);
 				if (!existing) {
-					newContacts.push(contacts[i]);
+					newContacts.push(data[i]);
 				}
 				else {
 					//console.log(existing.name + ' already cached');
 				}
 			}
-			this.setContacts(newContacts);
+			this.setContacts(newContacts, true);
 			//console.log('done, current lenght: ' + this.contacts.length);
 		},
-		
-		handleAjaxSuccess: function(data, status) {
+
+		handleExternalSearchResults: function(data, status) {
+			this.volatileContacts = true;
 			this.mergeContacts(data);
 			var ids = $.map(data, function(item, i) { return item.identifier; });
-			var contacts = $.grep(this.contacts, function(item, i) { return ($.inArray(item.identifier, ids) != -1); });
-			this.notifyObservers('searchCompleted', contacts);
+			this.notifyObservers(
+				'searchCompleted', 
+				$.grep(this.contacts, function(item, i) { return ($.inArray(item.identifier, ids) != -1); })
+			);
 		},
 		
 		handleSearchCompleted: function(results) {
@@ -1028,13 +1090,8 @@
 				this.jqHighlightedResult = null;
 				this.jqInlineInput.focus();
 			}
-			var selected = [];
-			for (var i = 0; i < this.contacts.length; i++) {
-				if (this.contacts[i].selected) {
-					selected.push(this.contacts[i].identifier);
-				}
-			}
-			this.jqFormInput.val(selected.join(','));
+			var selected = $.grep(this.contacts, function(contact) { return contact.isSelected(); });
+			this.setFormInput(selected, this.jqFormInput);
 		},
 
 		layoutContainer: function() {
@@ -1129,7 +1186,7 @@
 			return this.selected;
 		},
 		isEqualToContact: function(contact) {
-			return (this.identifier == contact.identifier && this.customClass == contact.customClass);
+			return (this.identifier == contact.identifier);
 		},
 		getResultListItem: function() {
 			if (!this.jqListItem) {

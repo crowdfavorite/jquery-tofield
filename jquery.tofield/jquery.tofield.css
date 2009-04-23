@@ -7,9 +7,6 @@
 	overflow:hidden;
 	/*overflow:auto;*/
 }
-.to-field .input-container {
-	margin:1px 0;
-}
 .to-field input {
 	border:none;
 	background:transparent;

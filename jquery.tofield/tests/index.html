@@ -27,16 +27,21 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
-
-			jQuery('input[name=test-3]').toField({
-				contacts: [
-					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
-					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' },
-					{ name: 'Thomas Jefferson', identifier: 'tommy.j@whitehouse.gov' },
-					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
-				]
-			});
 */
+			jQuery('input[name=test-3]').toField({
+				search: function(text) {
+					var toField = this;
+					$.get(
+						'/jquery.tofield/tests/internal-only/endpoint.php',
+						{ fullNames: true, text: text, maxSuggestions: 100 },
+						function(data, status) {
+							toField.handleExternalSearchResults(data);
+						},
+						'json'
+					);
+				}
+			});
+
 			jQuery('input[name=test-4]').toField({
 				maxSuggestions: 15,
 				ajax: {
@@ -46,6 +51,7 @@
 					}
 				}
 			});
+
 			
 			jQuery.get(
 				'/jquery.tofield/tests/internal-only/endpoint.php',
@@ -54,14 +60,27 @@
 					jQuery('input[name=test-5]').toField({
 						contacts: data,
 						idleDelay: 30,
-						searchKeys: {
-							name: { order: 3 },
-							firstName: {},
-							lastName: { order: 2 },
-							identifier: { order: 4 },
-							origin: {},
-							domain: { order: 1 }
-						}
+						searchKeys: [
+							'firstName', 
+							'lastName', 
+							'origin', 
+							'domain', 
+							'identifier', { 
+								property: 'name', 
+								search: function(contacts, key, text, suggestionsToGo) {
+									var results = [];
+									$.each(contacts, function(i, contact) {
+										if (contact[key].toLowerCase().indexOf(text) != -1) {
+											results.push(contact);
+										}
+										if (results.length >= suggestionsToGo) {
+											return false;
+										}
+									});
+									return results;
+								}
+							}
+						]
 					});
 				},
 				'json'
