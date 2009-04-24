@@ -1,7 +1,7 @@
 .to-field {
 	border:1px solid #bbb;
 	padding:2px;
-	background:#777;
+	background:url(images/smoke-highlight-shadowed-bg.png) repeat-x;
 	cursor: text;
 	position:relative;
 	overflow:hidden;
@@ -73,7 +73,7 @@ ul.search-results li.highlighted.mirror {
 .contact-token {
 	font-family: Helvetica, Arial, sans-serif;
 	font-size:13px;
-	background: #555 url(images/close-token-round.png) no-repeat right center;
+	/*background: #555 url(images/close-token-round.png) no-repeat right center;*/
 	-moz-border-radius:9px;
 	-webkit-border-radius:9px;
 	-khtml-border-radius:9px;
@@ -84,6 +84,13 @@ ul.search-results li.highlighted.mirror {
 	position:relative;
 	white-space: nowrap;
 }
+.contact-token .close {
+	float:right;
+	background: url(images/close-token-round.png) no-repeat;
+}
+.contact-token.x-hover .close {
+	background: url(images/close-token-round-active.png) no-repeat;
+}
 a.contact-token, a.contact-token a:hover {
 	text-decoration: none;
 	color:#eee;
@@ -92,6 +99,6 @@ a.contact-token, a.contact-token a:hover {
 	/*background-color:#dfffdf;*/
 }
 .contact-token.x-hover {
-	background-image: url(images/close-token-round-active.png);
+	/*background-image: url(images/close-token-round-active.png);*/
 	cursor:pointer;
 }

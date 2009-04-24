@@ -18,7 +18,7 @@
 					{ name: 'Carl Sandberg', identifier: 'carl@sandberg.org' }
 				];}
 			});
-/*
+
 			jQuery('input[name=test-2]').toField({
 				contacts: [
 					{ name: 'Edgar Allen Poe', identifier: 'eddie@rapping.net' },
@@ -27,29 +27,25 @@
 					{ name: 'Albert Einstein', identifier: 'bert@relativi.ty' }
 				]
 			});
-*/
+
+
+			var ajaxSearch = function(text) {
+				var toField = this;
+				$.get(
+					'/jquery.tofield/tests/internal-only/endpoint.php',
+					{ fullNames: true, text: text, maxSuggestions: 20 },
+					function(data, status) {
+						toField.handleExternalSearchResults(data);
+					},
+					'json'
+				);
+			}
 			jQuery('input[name=test-3]').toField({
-				search: function(text) {
-					var toField = this;
-					$.get(
-						'/jquery.tofield/tests/internal-only/endpoint.php',
-						{ fullNames: true, text: text, maxSuggestions: 100 },
-						function(data, status) {
-							toField.handleExternalSearchResults(data);
-						},
-						'json'
-					);
-				}
+				search: ajaxSearch
 			});
 
 			jQuery('input[name=test-4]').toField({
-				maxSuggestions: 15,
-				ajax: {
-					endpoint: '/jquery.tofield/tests/internal-only/endpoint.php',
-					queryExtra: {
-						fullNames: 'true'
-					}
-				}
+				search: ajaxSearch
 			});
 
 			
@@ -89,7 +85,23 @@
 		});
 	</script>
 	
+
 	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
+<!--
+	<link rel="stylesheet" href="../jquery.tofield.smoke.css" type="text/css" media="screen" title="no title" charset="utf-8">
+-->
+	<script type="text/javascript" charset="utf-8">
+	/*
+		$.fn.toField.getContactTokenMarkup = function(contact) {
+			var customClass = contact.getCustomClass();
+			return '\
+				<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
+					<span class="close"></span>\
+					' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
+				</a>';
+		};
+	*/
+	</script>
 	<style type="text/css" media="screen">
 		.Gaelic {
 			background-color:orange;
@@ -119,12 +131,12 @@
 			<input name="test-2" type="text" />
 		</fieldset>
 		<fieldset>
-			<legend>Long Input</legend>
-			<input name="test-3" type="text" size="80"/>
+			<legend>Ajax</legend>
+			<input name="test-3" type="text" size="20"/>
 		</fieldset>
 		<fieldset>
-			<legend>Ajax</legend>
-			<input name="test-4" type="text" size="20"/>
+			<legend>Long Input</legend>
+			<input name="test-4" type="text" size="80"/>
 		</fieldset>
 		<fieldset>
 			<legend>Client-side search on big list</legend>

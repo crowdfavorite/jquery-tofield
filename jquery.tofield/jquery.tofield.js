@@ -60,25 +60,10 @@
 	
 	var normalizeSearchKeyItem = function(item) {
 		return (typeof item == 'string') ? { property: item } : item;
-	}
+	};
 
 	// Globally overridable static methods. Set before first toField initialization.
 	// During execution, `this` will refer to the appropriate ToField object.
-
-	$.fn.toField.linearFragmentSearch = function(text) {
-		var results = [];
-		//console.log(this.contacts.length + ' contacts');
-		for (var i = 0; i < this.contacts.length; i++) {
-			if (this.contacts[i].name.toLowerCase().indexOf(text.toLowerCase()) != -1) {
-				results.push(this.contacts[i]);
-			}
-			else if (this.contacts[i].identifier.toLowerCase().indexOf(text.toLowerCase()) != -1) {
-				results.push(this.contacts[i]);
-			}
-		}
-		return results;
-	};
-
 
 	/**
 	 * 
@@ -117,35 +102,6 @@
 				results = results.concat(hits);
 			}
 		}
-		
-		
-		
-		/*
-		for (var i = 0; i < this.searchOrder.length && suggestionsToGo > 0; i++ ) {
-			key = this.searchOrder[i];
-			if (this.options.searchKeys.search) {
-				var hits = this.options.searchKeys.search(key, text, suggestionsToGo);
-			}
-			else {
-				// feature not ready
-				//var hits = this.searchPrefixBy(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
-				var hits = this.searchPrefixBy(key, text, suggestionsToGo);
-			}
-			if (hits) {
-				// filter out already-found. seems there should be a better way to do this ...
-				hits = $.grep(hits, function(contact) {
-					for (var k = 0; k < results.length; k++) {
-						if (results[k].isEqualToContact(contact)) {
-							return false;
-						}
-					}
-					return true;
-				});
-				suggestionsToGo -= hits.length;
-				results = results.concat(hits);
-			}
-		}
-		* */
 		return results;
 	};
 
@@ -165,7 +121,7 @@
 				' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
 			</a>';
 	};
-	
+	console.log('wtf1');
 	$.fn.toField.setFormInput = function(contacts, jqInput) {
 		jqInput.val($.map(contacts, function(contact) { return contact.identifier; }).join(','));
 	};
@@ -286,17 +242,13 @@
 				this.sortedContacts[this.options.searchKeys[i].property] = [];
 			}
 		}
-		/*
-		for (var key in this.options.searchKeys) {
-			this.sortedContacts[key] = [];
-		}
-		*/
 
 		// overridable methods will be defaults (global, defined below) or user-supplied. 
 		// peel off a copy of each, bound to this instance.
-		this.search = options.search._cfBind(this)
+		this.search = options.search._cfBind(this);
 		this.getResultItemMarkup = options.getResultItemMarkup._cfBind(this);
 		this.getContactTokenMarkup = options.getContactTokenMarkup._cfBind(this);
+		this.setFormInput = options.setFormInput._cfBind(this);
 		
 		if (typeof options.contacts == 'function') {
 			this.setContacts(options.contacts(), true);
@@ -304,6 +256,9 @@
 		else {
 			this.setContacts(options.contacts, true);
 		}
+		
+		this.options.maxSuggestionRows = Math.max(2, this.options.maxSuggestionRows);
+		this.options.maxTokenRows = Math.max(2, this.options.maxTokenRows);
 		
 		this._windowKeyDownHandler = null;
 		this._mouseOverSearchResultsList = false;
@@ -314,6 +269,7 @@
 		var h = jqFormInput.innerHeight();
 		this.jqContainer = $('<div class="to-field"></div>').width(w).height(h);
 		jqFormInput.hide().before(this.jqContainer);
+		this.insertInlineInput(false);
 		this.jqContainer.mousedown(this.handleMouseDown._cfBind(this));
 		this.jqContainer.mouseup(this.handleMouseUp._cfBind(this));
 
@@ -340,7 +296,7 @@
 		searchText: '',
 		keydownTimer: -1,
 		currentSortKey: null,
-
+		
 		options: {},
 
 		getFormName: function() {
@@ -354,10 +310,26 @@
 		handleMouseDown: function(event) {
 			//console.log('mouse down in ' + this.jqFormInput.attr('name'));
 			if (event.target == this.jqContainer.get(0) || event.target == this.jqInlineInputContainer.get(0)) {
-				this.insertInlineInput();
+				if (!this.probablyHasScrollbars() || !this.pointOverScrollbars(event.pageX, event.pageY)) {
+					this.insertInlineInput();
+				}
 			}
 		},
 		handleMouseUp: function(event) {
+		},
+		
+		probablyHasScrollbars: function() {
+			return this.jqContainer.css('overflow') == 'auto';
+		},
+		
+		pointOverScrollbars: function(pageX, pageY) {
+			var offset = this.jqContainer.offset();
+			var w = this.jqContainer.outerWidth();
+			var h = this.jqContainer.outerHeight();
+			
+			var r = (pageX > offset.left + w - this.options.scrollbarSize && pageX < offset.left + w) || 
+					(pageY > offset.top + h - this.options.scrollbarSize && pageY < offset.top + h);
+			return r;
 		},
 
 		createResultListItem: function(contact) {
@@ -389,7 +361,7 @@
 			return jqResult;
 		},
 		
-		insertInlineInput: function() {
+		insertInlineInput: function(andFocus) {
 			var i = this.getInlineInputContainer();
 			i.width(this.jqContainer.innerWidth() - this.options.scrollbarSize);
 			this.jqContainer.append(i);
@@ -459,31 +431,18 @@
 
 			// this hackery is for ie, which removes focus from the 
 			// input box when you click on a scroll bar.
-
 			this.jqResultsList.mouseenter((function(event) {
 				this._mouseOverSearchResultsList = true;
 			})._cfBind(this));
 			this.jqResultsList.mouseleave((function(event) {
 				this._mouseOverSearchResultsList = false;
-				/*
-				if (Browser.Engine.trident) {
-					setTimeout((function() {
-						this.inputElement.focus();
-					}).bind(this), 10);
-				}
-				*/
 			})._cfBind(this));
 
-			// note: there doesn't appear to be a way to detect a click on the scroll bar itself.
-			// soo... we're kind of screwed here. using the scroll bar without generating a mouseleave event
-			// will keep the input blurred, so keyboard commands won't work. ie is teh awesomeness.
 			return this.jqResultsList;
 		},
 		
 		createMirrorContact: function() {
 			var c = construct(MirrorContact, [{ name: '', identifier: '' }, this]);
-			//c.jqListItem = this.createResultListItem(c);
-			//c.jqResultItem.addClass('mirror');
 			var toField = this;
 			c.addObserver(
 				'selectionStateChanged',
@@ -589,6 +548,7 @@
 				h += jqItem.outerHeight();
 				if (i < this.options.maxSuggestionRows) {
 					jqList.height(h);
+					jqList.css('overflow', 'hidden');
 				}
 				else if (i == this.options.maxSuggestionRows) {
 					jqList.css('overflow', 'auto');
@@ -653,7 +613,7 @@
 				this.jqInlineInput.val(text);
 			}
 			this.searchText = text;
-			this.notifyObservers('searchTextChanged', text);
+			this.notifyObservers('searchTextChanged', text, true);
 		},
 
 		getSearchText: function() {
@@ -821,11 +781,11 @@
 
 					while ((left - 1 >= 0) && array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
 						// console.log('expanding left - 1. array[left - 1][key] = ' + array[left - 1][key] + ', prefix.substr(0, prefixIndex + 1) = ' + prefix.substr(0, prefixIndex + 1) + ', array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
-						left--
+						left--;
 					};
 					while ((right + 1 < array.length) && array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
 						// console.log('expanding right + 1. array[right + 1][key] = ' + array[right + 1][key] + ', prefix.substr(0, prefixIndex) = ' + prefix.substr(0, prefixIndex + 1) + ', array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
-						right++
+						right++;
 					};
 					// console.log('... range with prefix ' + prefix + ' is now (left, found, right): ' + left + ', ' + found + ', ' + right + ', (' + array[left][key] + ', ' + array[found][key] + ', ' + array[right][key] + ')');
 					lastFound = found;
@@ -839,7 +799,7 @@
 			
 			if (found >= 0) {
 				// console.log('made it through ' + prefixIndex + ' chars of prefix, returning found == true, start: ' + left + ' (' + array[left][key] + '), end: ' + right + ' (' + array[right][key] + ')');
-				return { found: true, start: left, end: (maxHits > 0 ? Math.min(left + maxHits - 1, right) : right) }
+				return { found: true, start: left, end: (maxHits > 0 ? Math.min(left + maxHits - 1, right) : right) };
 			}
 			// console.log('could not find any items with prefix ' + prefix + ' in key ' + key);
 			return { found: false, start: left, end: right };
@@ -1103,12 +1063,12 @@
 			var contentHeight = inputRowHeight;
 			var lastY = -1;
 			var pos = 0;
+			var toField = this;
 			this.jqContainer.children().each(function() {
 				var jqThis = $(this);
-				var maxWidth = jqThis.parent().innerWidth();
+				var maxWidth = jqThis.parent().innerWidth() - toField.options.scrollbarSize;
 				if (jqThis.outerWidth() > maxWidth) {
-					//console.log('width: ' + jqThis.outerWidth() + ' > maxWidth: ' + maxWidth);
-					// truncate?
+					truncateToFit(jqThis, maxWidth);
 				}
 				if (jqThis.position().top != lastY) {
 					rows++;
@@ -1125,6 +1085,7 @@
 			if (rows > (this.options.maxTokenRows + 1)) {
 				this.jqContainer.height((this.options.maxTokenRows * tokenRowHeight) +  inputRowHeight);
 				this.jqContainer.css('overflow', 'auto');
+				this.jqContainer.css('overflow-x', 'hidden');
 				var inputLeft = this.jqInlineInput.position().left;
 				var diff = this.jqContainer.innerWidth() - (inputLeft + this.jqInlineInput.outerWidth());
 				if (diff < this.options.scrollbarSize) {
@@ -1159,11 +1120,11 @@
 		
 		setName: function(name) {
 			this.name = name;
-			this.notifyObservers('nameChanged', name);
+			this.notifyObservers('nameChanged', name, true);
 		},
 		setIdentifier: function(identifier) {
 			this.identifier = identifier;
-			this.notifyObservers('identifierChanged', identifier);
+			this.notifyObservers('identifierChanged', identifier, true);
 		},
 		getCustomClass: function() {
 			return this.customClass;
@@ -1211,7 +1172,7 @@
 		toField.addObserver('searchTextChanged', this.handleSearchTextChanged);
 		this.handleSearchTextChanged(toField.getSearchText());	// get initial text
 		return this;
-	}
+	};
 	$.extend(true, MirrorContact.prototype, Contact.prototype, {
 		superclass: Contact,	// kinda-sorta inheritance ... meh.
 		select: function() {
@@ -1222,16 +1183,16 @@
 			return true;
 		},
 		getResultListItem: function() {
-			if (!this.jqListItem) {
-				var r = this.superclass.prototype.getResultListItem.apply(this);
-				r.addClass('mirror');
+			var item = this.superclass.prototype.getResultListItem.apply(this);
+			if (!item.hasClass('mirror')) {
+				item.addClass('mirror');
 			}
-			return this.superclass.prototype.getResultListItem.apply(this);
+			return item;
 		},
 		handleSearchTextChanged: function(text) {
 			this.setIdentifier(text);
 			this.setName(text);
-			this.getResultListItem().html(this.toField.getResultItemMarkup(this))
+			this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());	// preserve the node and jquery object
 		}
 	});
 
@@ -1262,6 +1223,7 @@
 		jqToken: null,
 		toField: null,
 		jqContainer: null,
+		truncateIndex: -1,
 		
 		handleContactSelectionStateChanged: function(change) {
 			if (change.state == false) {
@@ -1278,15 +1240,28 @@
 		},
 		
 		pointIsOverX: function(pageX, pageY) {
-			var paddingLeft = parseInt(this.jqToken.css('padding-left'));
-			var paddingRight = parseInt(this.jqToken.css('padding-right'));
+			var paddingLeft = parseInt(this.jqToken.css('padding-left'), 10);
+			var paddingRight = parseInt(this.jqToken.css('padding-right'), 10);
 			paddingLeft = isNaN(paddingLeft) ? 0 : paddingLeft;
 			paddingRight = isNaN(paddingRight) ? 0 : paddingRight;
 			var xLeft = this.jqToken.innerWidth() - paddingRight;
 			var elementXPos = this.jqToken.offset().left;
 			return (pageX - elementXPos > xLeft);
 		},
-		
+/*		
+		truncateToFit: function(width) {
+			var w = this.jqToken.outerWidth();
+
+			// this is ugly.
+			var originalContact = this.contact;
+			this.contact = $.extend(true, {}, this.contact);
+			while (w > width) {
+				this.contact.name = this.contact.name.substr(0, this.contact.name.length - 2) + '&hellip;';
+				this.jqToken.html($(toField.getContactTokenMarkup(contact)).html());
+			}
+			this.contact = this.originalContact;
+		},
+*/
 		handleMouseMove: function(event) {
 			if (this.pointIsOverX(event.pageX, event.pageY)) {
 				this.jqToken.addClass('x-hover');
@@ -1303,6 +1278,26 @@
 			}
 		}
 	});
+
+	var truncateToFit = function(jqItem, width) {
+		var node = jqItem.get(0);
+		if (node) {
+			var safety = 0;
+			// node[property] doesn't seem to work as a setter ...
+			if (node.textContent) {
+				node.textContent = $.trim(node.textContent);
+				while (jqItem.outerWidth(true) > width && safety++ < 100) {
+					node.textContent = node.textContent.substr(0, node.textContent.length - 2) + $('<p>&#133;</p>').html();		// um
+				}
+			}
+			else if (node.innerText) {
+				node.textContent = $.trim(node.textContent);
+				while (jqItem.outerWidth(true) > width && safety++ < 100) {
+					node.innerText = node.innerText.substr(0, node.innerText.length - 2) + $('<p>&#133;</p>').html();		// um
+				}
+			}
+		}
+	};
 
 	if (!Array.prototype.indexOf) {
 		Array.prototype.indexOf = function(elt /*, from*/) {

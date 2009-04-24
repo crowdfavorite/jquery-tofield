@@ -9,6 +9,7 @@
 5. Searching
 6. Global Function Replacement
 7. Contact & ToField Object APIs
+8. Credits
 
 ## Quick Start
 
@@ -58,7 +59,7 @@ One thing to note here: when your search function is running, the `this` referen
 
 ## Overview
 
-The to:field jQuery plugin transforms any text form input into a Facebook-style auto-suggest widget with only a few lines of code. It's been built for blindingly fast search and for ease of use, but its behavior and appearance are highly customizable. While providing your users quick access to their addressbook is the most obvious use for the plugin and we use the word "contact" to describe your auto-suggest objects, the plugin will work equally well in any auto-suggest context: books, music, categories, countries, or anything!
+The to:field jQuery plugin transforms any text form input, with only a few lines of code, into a Facebook-style auto-suggest widget. It's been built for blindingly fast search and for ease of use, but its behavior and appearance are highly customizable. While providing your users quick access to their addressbook is the most obvious use for the plugin and we use the word "contact" to describe your auto-suggest objects, the plugin will work equally well in any auto-suggest context: books, music, tags, countries, or anything!
 
 As noted in the Quick Start above, the to:field plugin has two primary modes: 
 
@@ -270,7 +271,7 @@ Now, when your user types "poets" (or any shorter prefix thereof) into the to:fi
 
 Finally, let's say that you want to, as a last resort, search for any fragment of the search text in some property. You can define your own search function to do this, and you can do it on a property that has already been searched by prefix. So if the search string doesn't prefix-match `name`, `identifier`, `group`, or `lastName`, you can try to match anything in the `name` property by doing something like the following:
 
-	searchKeys: ['lastName', 'group', {
+	searchKeys: ['name', 'lastName', 'identifier', 'group', {
 			property: 'name',
 			search: function(contacts, key, text, suggestionsToGo) {
 				var results = [];
@@ -298,7 +299,7 @@ Here, instead of specifying a property name via a string, you put an object into
 
 The search function should return that subset of contacts which match the search text, according to your custom search algorithm, but no more than `suggestionsToGo`. In this case, we just look for any occurrence of the search text in the passed contacts and stop looking once we've found `suggestionsToGo` many of them.
 
-As before, the order of your custom search in the searchKeys array determines when it is run. A search like the above will be relatively slow, so you will probably want to run it as a last resort, when nothing else matches.
+As before, the order of your custom search in the searchKeys array determines when it is run. Note again that we already searched name using the built-in prefix search; our custom search does not prevent that from happening. A search like the above will be relatively slow, so you will probably want to run it as a last resort, when nothing else matches.
 
 **Note:** You don't need to filter out duplicate hits from earlier searches--the to:field plugin will do that for you.
 
@@ -351,3 +352,8 @@ Returns this ToField's form input, wrapped in jQuery.
 #### ToField.handleExternalSearchResults({ContactData[]})
 
 Call this method to asynchronously provide search results to the plugin, based on a search you handle yourself (probably via ajax). Passing a function for `options.search` and calling this method to provide the results will completely bypass the plugin's internal searching algorithm. (See Quick Start for an example.) The contact data you pass in should be an array of contact objects structured just like the contact data you'd pass in to initialize the plugin normally.
+
+
+## Credits
+
+The to:field plugin was developed by <a href="http://crowdfavorite.com">Crowd Favorite</a>.
