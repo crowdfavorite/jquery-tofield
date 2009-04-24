@@ -1,17 +1,19 @@
 /*
- * jQuery To: Field Plugin 1.0
+ * to:field 1.0
  *
- * @todo: add real links
  * http://crowdfavorite.com/
- * http://docs.jquery.com/Plugins/ToField
+ * @todo: add link to jquery plugin page
  *
  * Copyright (c) 2009 Crowd Favorite
- *
- * $Id$
+ * Last Updated: 2009.04.24
  * 
  * Dual licensed under the MIT and GPL licenses:
  *   http://www.opensource.org/licenses/mit-license.php
  *   http://www.gnu.org/licenses/gpl.html
+ * 
+ * The to:field jQuery plugin transforms any text form input, with only a few 
+ * lines of code, into a Facebook-style auto-suggest widget.
+ * 
  */
 
 ;(function($) {
