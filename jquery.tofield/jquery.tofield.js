@@ -12,7 +12,9 @@
  *   http://www.gnu.org/licenses/gpl.html
  * 
  * The to:field jQuery plugin transforms any text form input, with only a few 
- * lines of code, into a Facebook-style auto-suggest widget.
+ * lines of code, into a Facebook-style auto-suggest widget. 
+ * 
+ * Requires jQuery 1.3.
  * 
  */
 
