@@ -17,12 +17,10 @@
 ;(function($) {
 
 	$.fn.toField = function(options) {
-		// build main options before element iteration
-		
+
 		// special handling for searchKeys:
 		// if the user specifies any of our defaults (name or identifier), we want to use 
 		// that info. otherwise, make sure those two are in front.
-		
 		var normalizedSearchKeys = [];
 		
 		if (options.searchKeys) {
@@ -46,13 +44,6 @@
 		}
 		
 		options.searchKeys = normalizedSearchKeys;
-		/*
-		$.each ($.fn.toField.defaults, function(key, value) {
-			if (typeof value == 'function') {
-				console.log(key + ': ' + value.toString())
-			}
-		});
-		*/
 		var opts = $.extend(true, {}, $.fn.toField.defaults, options);
 		
 		// iterate over matched elements
@@ -63,17 +54,10 @@
 		});
 	};
 	
-	
 	var normalizeSearchKeyItem = function(item) {
 		return (typeof item == 'string') ? { property: item } : item;
 	};
 
-	// Globally overridable static methods. Set before first toField initialization.
-	// During execution, `this` will refer to the appropriate ToField object.
-
-	/**
-	 * 
-	 */
 	$.fn.toField.search = function(text) {
 		var results = [];
 		var suggestionsToGo = this.options.maxSuggestions;
@@ -83,16 +67,13 @@
 			if (this.options.searchKeys[i].search) {
 				// "hit weights" feature not ready
 				//var hits = this.options.searchKeys[i].search(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
-				//console.log('user-supplied search for key ' + key);
 				var hits = this.options.searchKeys[i].search(this.contacts, key, text, suggestionsToGo);
 				//if (hits) console.log('... found ' + hits.length);
 			}
 			else {
 				// "hit weights" feature not ready
 				//var hits = this.searchPrefixBy(key, text, Math.min(suggestionsToGo, this.searchHits[key]));
-				//console.log('internal search for key ' + key);
 				var hits = this.searchPrefixBy(key, text, suggestionsToGo);
-				//if (hits) console.log('... found ' + hits.length);
 			}
 			if (hits) {
 				// filter out already-found. seems there should be a better way to do this ...
@@ -160,12 +141,10 @@
 	var Observable = {
 		observers: {},
 		addObserver: function(eventName, f) {
-			//console.log('adding observer for ' + eventName + ', ' +  this.jqFormInput.attr('name'));
 			if (!this.observers[eventName]) {
 				this.observers[eventName] = [];
 			}
 			this.observers[eventName].push(f);
-			//console.dir(this.observers);
 			return f;
 		},
 		removeObserver: function(eventName, f) {
@@ -197,7 +176,6 @@
 					else {
 						setTimeout((function(enclosedIndex) {
 							return (function() {
-								//console.log('notifying ' + enclosedIndex + ' of ' + observers.length + ' observers for ' + eventName);
 								observers[enclosedIndex].apply(observers[enclosedIndex], [arg]);
 							});
 						})(i), 1);
@@ -217,26 +195,6 @@
 		};
 	}
 	
-	// stop an event (a la mootools)
-	var stopEvent = function(event) {
-		if (event.stopPropagation) {
-			event.stopPropagation();
-		}
-		else {
-			event.cancelBubble = true;
-		}
-		if (event.preventDefault) {
-			event.preventDefault();
-		}
-		else {
-			event.returnValue = false;
-		}
-		return event;
-	};
-
-	/**
-	 * Following D. Crockford's "object" function. Sorta.
-	 */
 	var construct = function(constructor, args) {
 		function F() {};
 		$.extend(true, F.prototype, constructor.prototype);
@@ -275,9 +233,7 @@
 		this.options.maxSuggestionRows = Math.max(2, this.options.maxSuggestionRows);
 		this.options.maxTokenRows = Math.max(2, this.options.maxTokenRows);
 		
-		this._windowKeyDownHandler = null;
 		this._mouseOverSearchResultsList = false;
-		//this._windowMouseDownHandler = null;
 		this._searchResultsShown = false;
 
 		var w = jqFormInput.innerWidth();
@@ -323,7 +279,6 @@
 		},
 		
 		handleMouseDown: function(event) {
-			//console.log('mouse down in ' + this.jqFormInput.attr('name'));
 			if (event.target == this.jqContainer.get(0) || event.target == this.jqInlineInputContainer.get(0)) {
 				if (!this.probablyHasScrollbars() || !this.pointOverScrollbars(event.pageX, event.pageY)) {
 					this.insertInlineInput();
@@ -333,7 +288,9 @@
 		
 		probablyHasScrollbars: function() {
 			var maybeCanHas = false;
-			$.each(['overflow', 'overflow-x', 'overflow-y'], (function(i, key) { if (this.jqContainer.css(key) == 'auto') maybeCanHas = true; })._cfBind(this));
+			$.each(['overflow', 'overflow-x', 'overflow-y'], (function(i, key) { 
+				if (this.jqContainer.css(key) == 'auto') maybeCanHas = true; 
+			})._cfBind(this));
 			return maybeCanHas;
 		},
 		
@@ -441,11 +398,8 @@
 				return this.jqResultsList;
 			}
 			this.jqResultsList = $('<ul class="search-results"></ul>');
-			//this.jqContainer.after(this.jqResultsList);
 			$('body').append(this.jqResultsList);
 
-			// this hackery is for ie, which removes focus from the 
-			// input box when you click on a scroll bar.
 			this.jqResultsList.mouseenter((function(event) {
 				this._mouseOverSearchResultsList = true;
 			})._cfBind(this));
@@ -483,10 +437,8 @@
 				this.insertInlineInput();
 			})._cfBind(this), 10);
 		},
-		
-		/**
-		 * First argument can be a jQuery-ed list item or an index into the list.
-		 */
+
+		// First argument can be a jQuery-ed list item or an index into the list.
 		highlightResult: function(jqItem, scrollBehavior) {
 			if (!this._searchResultsShown) {
 				return;
@@ -499,7 +451,6 @@
 			jqList.children('li').removeClass('highlighted');
 			
 			this.jqHighlightedResult = jqItem;
-			//console.log(jqItem);
 			
 			if (this.jqHighlightedResult) {
 				this.jqHighlightedResult.addClass('highlighted');
@@ -509,13 +460,11 @@
 					var scrollPos = jqList.scrollTop();
 					var itemRelativePos = itemPos + scrollPos;
 					var listHeight = jqList.innerHeight();
-					//itemPos += (!$.support.boxModel ? scrollPos : 0);
 					if (itemPos < 0) {
 						jqList.scrollTop(itemRelativePos);
 					}
 					if (itemPos + itemHeight > listHeight) {
 						jqList.scrollTop(itemRelativePos + itemHeight - listHeight);
-						//jqList.scrollTop(scrollPos + ((itemPos + itemHeight) - (scrollPos + listHeight)));
 					}
 				}
 			}
@@ -613,7 +562,6 @@
 			}
 			var current = this.getHighlightedResultIndex();
 			if (current == -1) {
-				//this.highlightResult(this.searchResults.length - 1);
 				this.highlightResult(0);
 			}
 			else {
@@ -643,7 +591,6 @@
 			for (var key in this.sortedContacts) {
 				setTimeout((function(key) {
 					return function() {
-						//console.log('sorting ' + key);
 						toField.sortedContacts[key] = toField.contacts.slice(0);	// make a copy (references only)
 						toField.currentSortKey = key;
 						toField.sortedContacts[key].sort();
@@ -652,7 +599,6 @@
 						var done = true;
 						$.each(checkins, function(k, checkedIn) { if (!checkedIn) done = false; });
 						if (done) {
-							//console.dir(checkins);
 							toField.notifyObservers('sortingCompleted');
 						}
 					};
@@ -664,49 +610,15 @@
 		calculateSearchParams: function() {
 			// try to normalize stuff
 			var sum = 0;
-			//var order = [];
-			//this.searchOrder = [];
 			$.each(this.options.searchKeys, (function(i, key) {
 				sum += key.hits || 0;
-				//this.searchOrder.push(key.property);
 			})._cfBind(this));
 			
 			$.each(this.options.searchKeys, (function(i, key) {
 				var hits = key.hits ? key.hits : 0;
 				this.searchHits[key.property] = Math.floor((hits * this.options.maxSuggestions) / sum);
 			})._cfBind(this));
-			
-			/*
-			for (var key in this.options.searchKeys) {
-				sum += this.options.searchKeys[key].hits || 0;
-				order.push({ key: key, order: this.options.searchKeys[key].order || Number.MAX_VALUE });
-			}
-			//console.dir(order);
-			order.sort(function(a, b) { return a.order - b.order });
-			this.searchOrder = $.map(order, function(o) { return o.key; });
-			for (var key in this.options.searchKeys) {
-				this.searchHits[key] = Math.floor(((this.options.searchKeys[key].hits || 0) * this.options.maxSuggestions) / sum);
-			}
-			*/
-			//console.dir(this.searchHits);
-			//console.dir(this.searchOrder);
 		},
-		/*
-		sendAjaxRequest: function(text) {
-			var query = {};
-			for (var k in this.options.ajax.queryKeys) {
-				query[this.options.ajax.queryKeys[k]] = this.options[k];
-			}
-			query[this.options.ajax.queryKeys.text] = text;
-			var query = $.extend(this.options.ajax.queryExtra, query);
-			$.get(
-				this.options.ajax.endpoint,
-				query,
-				this.handleAjaxSuccess._cfBind(this),
-				this.options.ajax.dataType
-			);
-		},
-		* */
 		
 		dispatchSearch: function(text) {
 			var f = (function() {
@@ -723,14 +635,11 @@
 			this.keydownTimer = setTimeout(f, this.options.idleDelay);
 		},
 		
-		/**
-		 * Does not remove contacts that are selected.
-		 */
+
+		// Does not remove contacts that are selected.
 		pruneContacts: function() {
 			var n = this.contacts.length;
-			//console.dir(this.contacts);
 			this.contacts = $.grep(this.contacts, function(contact) { return contact.isSelected(); });
-			//console.log('pruned ' + (n - this.contacts.length) + ' contacts, now have ' + this.contacts.length + ' contacts' );
 		},
 
 		setContacts: function(contacts, internal) {
@@ -740,8 +649,6 @@
 			}
 			this.pruneContacts();
 			var toField = this;
-			//console.log('setting contacts:');
-			//console.dir(contacts);
 			
 			$.each(contacts, function(i, contact) {
 				if (!contact.identifier) {
@@ -756,13 +663,11 @@
 				}
 				else {
 					// reuse it
-					//console.log('contact ' + contact.name + ' is a duck');
 					contactObj = contact;
 				}
 				if (!contactObj.isSelected()) {
 					toField.contacts.push(contactObj);
 				}
-				//console.log(toField.getFormName() + ' is observing ' + contactObj.name + ' for selectionStateChanged');
 			});
 			// don't incur the expense of sorting if we're in volatile mode
 			if (!this.volatileContacts) {
@@ -777,12 +682,8 @@
 		searchPrefixBy: function(key, text, maxHits) {
 			maxHits = (maxHits && maxHits > 0) ? maxHits : 0;
 			if (this.sortedContacts[key]) {
-				//console.log('------ key search: searching ' + key + ' for ' + text + '------');
-				//console.dir(this.sortedContacts[key]);
 				var range = this.getRangeWithPrefix(text, key, this.sortedContacts[key], maxHits);
 				if (range.found) {
-					//console.log('found:');
-					//console.dir(this.sortedContacts[key].slice(range.start, range.end + 1));
 					return this.sortedContacts[key].slice(range.start, range.end + 1);
 				}
 			}
@@ -797,114 +698,72 @@
 			var found = lastFound = middle = -1;
 			// binary search on first letter, then binary search on second letter within
 			// the range of all names with the first letter ... and so on.
-			// console.log('walking through prefix ' + prefix + ' on array with items (' + ($.map(array, function(item) { return item[key]; })).join(', ') + ')');
 			for (var prefixIndex = 0; prefixIndex < prefix.length; prefixIndex++) {
-				// console.log('calling _binaryPrefixSearch with left: ' + left + ', right: ' + right + ', prefixIndex: ' + prefixIndex + ', key: ' + key);
 				found = this._binaryPrefixSearch(left, right, prefixIndex, prefix, key, array);
 				if (found != -1) {
 					// found is an index somwhere in a possible range of items with this prefix. expand out both edges to capture
 					// all with the prefix. edges should be inclusive. 
 					// (that is, it will be true that array[left][key] and array[right][key] will both be prefixed with passed prefix.)
 					// the next call to binaryPrefixSearch will be confined to this narrower range.
-					// console.log('found char ' + prefixIndex + ' of ' + prefix + ' in key ' + key + ' at index ' + found + ', expanding...');
 					left = right = found;
-//					while ((left - 1 >= 0) && (array[left - 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) left--;
-//					while ((right + 1 < array.length) && (array[right + 1][key].charAt(prefixIndex).toLowerCase() == prefix.charAt(prefixIndex))) right++;
-
-					while ((left - 1 >= 0) && array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
-						// console.log('expanding left - 1. array[left - 1][key] = ' + array[left - 1][key] + ', prefix.substr(0, prefixIndex + 1) = ' + prefix.substr(0, prefixIndex + 1) + ', array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
-						left--;
-					};
-					while ((right + 1 < array.length) && array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) {
-						// console.log('expanding right + 1. array[right + 1][key] = ' + array[right + 1][key] + ', prefix.substr(0, prefixIndex) = ' + prefix.substr(0, prefixIndex + 1) + ', array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)): ' + array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)))
-						right++;
-					};
-					// console.log('... range with prefix ' + prefix + ' is now (left, found, right): ' + left + ', ' + found + ', ' + right + ', (' + array[left][key] + ', ' + array[found][key] + ', ' + array[right][key] + ')');
+					while ((left - 1 >= 0) && array[left - 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) left--;
+					while ((right + 1 < array.length) && array[right + 1][key].toLowerCase().indexOf(prefix.substr(0, prefixIndex + 1)) == 0) right++;
 					lastFound = found;
 				}
 				else {
-					// console.log('did not find char ' + prefixIndex + ' of prefix ' + prefix +  ' in key ' + key + ', breaking with found = -1');
 					break;
 				}
 				middle = found;
 			}
 			
 			if (found >= 0) {
-				// console.log('made it through ' + prefixIndex + ' chars of prefix, returning found == true, start: ' + left + ' (' + array[left][key] + '), end: ' + right + ' (' + array[right][key] + ')');
 				return { found: true, start: left, end: (maxHits > 0 ? Math.min(left + maxHits - 1, right) : right) };
 			}
-			// console.log('could not find any items with prefix ' + prefix + ' in key ' + key);
 			return { found: false, start: left, end: right };
 		},
 		
 		_binaryPrefixSeachCmp: function(obj, prefix, charIndex, key) {
-			// console.log('>> comparing char ' + charIndex + ' of ' + obj[key] + ' and ' + prefix + ' ... ');
-			if (!obj[key]) {
-				//console.log('key: ' + key);
-				//console.dir(obj);
-				//console.trace();
-			}
 			var objName = obj[key].toLowerCase();
 			prefix = prefix.toLowerCase();
 			if (charIndex >= objName.length || charIndex >= prefix.length) {
 				r = objName.length > prefix.length ? 1 : -1;
-				// console.log('>> result: ' + r);
 				return r;
 			}
-			r = (
-				objName.charAt(charIndex) <= prefix.charAt(charIndex) ? (
-					objName.charAt(charIndex) < prefix.charAt(charIndex) ? -1 : 0
-				) : 1
-			);
-			//console.log('>> result: ' + r);
+			r = (objName.charAt(charIndex) <= prefix.charAt(charIndex) ? (objName.charAt(charIndex) < prefix.charAt(charIndex) ? -1 : 0) : 1);
 			return r;
 		},
 		
 		_binaryPrefixSearch: function(left, right, charIndex, prefix, key, array) {
-			//console.log('running binary search between ' + array[left][key] + ' and ' + array[right][key] + ' for char ' + charIndex + ' of prefix ' + prefix);
 			if (right == left) {
 				if (this._binaryPrefixSeachCmp(array[right], prefix, charIndex, key) == 0) {
-					//console.log(' ... right == left and it\'s a match, returning right, ' + array[right][key]);
 					return right;
 				}
-				//console.log(' ... right == left and no match, returning -1');
 				return -1;
 			}
-			while (right > left /*&& (right - left > 2)*/) {
+			while (right > left) {
 				var middle = Math.floor((left + right) / 2);
-				//console.log('>> left, middle, right : ' + left + ', ' + middle + ', ' + right + ' (' + array[left][key] +', ' + array[middle][key] + ', ' + array[right][key] + ')');
 				if (right - left == 1) {
 					if (this._binaryPrefixSeachCmp(array[right], prefix, charIndex, key) == 0) {
-						//console.log(' ... early returning right, ' + array[right][key]);
 						return right;
 					}
 					if (this._binaryPrefixSeachCmp(array[left], prefix, charIndex, key) == 0) {
-						//console.log(' ... early returning left, ' + array[left][key]);
 						return left;
 					}
 				}
-
 				var c = this._binaryPrefixSeachCmp(array[middle], prefix, charIndex, key);
 				if (c > 0) {
 					if (right == middle) {
-						//console.log(' ... right = middle, middle evaluated to 1; not found, returning -1');
 						return -1;
-						//console.log(' ... returning right, ' + array[right][key]);
-						//return right;
 					}
 					right = middle;
 				}
 				else if (c < 0) {
 					if (left == middle) {
-						//console.log(' ... left = middle, middle evaluated to -1; not found, returning -1');
 						return -1;
-						//console.log(' ... returning left, ' + array[left][key]);
-						//return left;
 					}
 					left = middle;
 				}
 				else {
-					//console.log(' ... returning middle, ' + array[middle][key]);
 					return middle;
 				}
 			}
@@ -912,14 +771,11 @@
 		},
 
 		searchExactBy: function(key, text) {
-			//console.log('search by ' + key + ' for ' + text + ', sorted contacts: ');
-			//console.dir(this.sortedContacts[key]);
 			if (!this.volatileContacts) { // they are sorted; we can use binary search
 				if (this.sortedContacts[key]) {
 					return this.binarySearch(text, key, this.sortedContacts[key]);
 				}
 			}
-			// resort to a linear search
 			for (var i = 0; i < this.contacts.length; i++) {
 				if (this.contacts[i][key] == text) {
 					return this.contacts[i];
@@ -932,37 +788,17 @@
 			var searchState = { left: -1, right: -1, middle: -1, result: null };
 			var searchTimer = null;
 			var found = false;
-			var sleep = 30;
 			
 			searchState = this._statefulBSearch(match, key, array, searchState);
 			if ((searchState.left >= 0 && (searchState.left == searchState.middle || searchState.right == searchState.middle)) || searchState.result) {
-				// finished searching
 				if (searchState.result) {
 					found = searchState.result;
 				}
 			}
-			else {
-				// ran out of iterations, not found
-				//searchTimer = setTimeout(arguments.callee, sleep);
-			}
 			return found;
-			/*
-			searchTimer = setTimeout((function() {
-				searchState = this._statefulBSearch(match, key, array, searchState, iterations);
-				if ((searchState.left >= 0 && (searchState.left == searchState.middle || searchState.right == searchState.middle)) || searchState.result) {
-					// finished searching
-					if (searchState.result) {
-						found = searchState.result;
-					}
-				}
-				else {
-					// ran out of iterations, not found
-					searchTimer = setTimeout(arguments.callee, sleep);
-				}
-			})._cfBind(this), sleep);
-			*/
 		},
 		
+		// without the overhead of the prefix stuff ...
 		_statefulBSearch: function(match, key, sortedArray, state, iterations) {
 			match = match.toLowerCase();
 			state.left = (state.left >= 0 ? state.left : 0);
@@ -995,19 +831,14 @@
 		
 		mergeContacts: function(data) {
 			var existing = null;
-			//console.log('merge ' + contacts.length + ' incoming contacts into current list with ' + this.contacts.length + ' ... ');
 			var newContacts = this.contacts.slice(0); // new copy
 			for (var i = 0; i < data.length; i++) {
 				existing = this.searchExactBy('identifier', data[i].identifier);
 				if (!existing) {
 					newContacts.push(data[i]);
 				}
-				else {
-					//console.log(existing.name + ' already cached');
-				}
 			}
 			this.setContacts(newContacts, true);
-			//console.log('done, current lenght: ' + this.contacts.length);
 		},
 
 		handleExternalSearchResults: function(data, status) {
@@ -1021,38 +852,33 @@
 		},
 		
 		handleSearchCompleted: function(results) {
-			//console.log('handleSearchCompleted');
 			var oldHighlightedIndex = this.getHighlightedResultIndex();
 			var oldHighlightedContact = this.searchResults[oldHighlightedIndex];
 
 			this.searchResults = [];
-			if (this.options.acceptAdHoc) {
-				this.searchResults.push(this.getMirrorContact());
-			}
-			else if (results.length == 0) {
-				var mirror = this.getMirrorContact();
-				mirror.setSelectable(false);
-				this.searchResults.push(mirror);
-			}			
 			for (var i = 0; i < results.length; i++) {
 				if (!results[i].isSelected()) {
 					this.searchResults.push(results[i]);
 				}
 			}
-			
+
+			if (this.options.acceptAdHoc) {
+				this.searchResults.unshift(this.getMirrorContact());
+			}
+			else if (this.searchResults.length == 0) {
+				var mirror = this.getMirrorContact();
+				mirror.setSelectable(false);
+				this.searchResults.push(mirror);
+			}			
+
 			this.showSearchResults();
 						
 			if ((results.length == 0 && this.options.acceptAdHoc) || !oldHighlightedContact) {
 				this.highlightResult(0);	// mirror
 			}
-			else if (results.length == 1) {
+			else if (results.length == 1 && this.searchResults.length == 2) {
 				// if only one result, highlight it.
-				if (this.options.acceptAdHoc) {
-					this.highlightResult(1);
-				}
-				else {
-					this.highlightResult(0);
-				}
+				this.highlightResult(1);
 			}
 			else if (oldHighlightedContact) {
 				var found = false;
@@ -1071,11 +897,13 @@
 				}
 			}
 		},
+		
 		handleSortingCompleted: function() {
 			if (this.options.ready) {
 				this.options.ready(this);
 			}
 		},
+		
 		handleContactSelectionStateChanged: function(change) {
 			if (change.state == true) {
 				if (change.contact == this.mirrorContact) {
@@ -1145,7 +973,7 @@
 		this.toField = toField;
 		$.extend(this, data);
 		var x = this;
-		// if (browser.is.stupid) ... ie6 won't recognize toString() in the prototype, so promote it to local property.
+		// ie6 won't recognize toString() in the prototype, so promote it to local property.
 		this.toString = this._toString;
 		return this;
 	};
@@ -1172,9 +1000,6 @@
 		},
 		select: function() {
 			this.selected = true;
-			//console.log(this.name + '\'s observers: ');
-			//console.dir(this.observers);
-			//console.log(this.name + ' select() called');
 			this.notifyObservers('selectionStateChanged', { contact: this, state: true });
 		},
 		deselect: function() {
@@ -1308,7 +1133,7 @@
 			else {
 				this.jqToken.removeClass('x-hover');
 			}
-			stopEvent(event);
+			return false;
 		},
 		
 		handleClick: function(event) {
