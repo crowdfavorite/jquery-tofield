@@ -1,5 +1,11 @@
 # To:Field jQuery Plugin Readme
 
+Copyright (c) 2009 <a href="http://crowdfavorite.com">Crowd Favorite</a><br/>
+Dual licensed under the MIT and GPL licenses:
+
+- <a href="http://www.opensource.org/licenses/mit-license.php">http://www.opensource.org/licenses/mit-license.php</a>
+- <a href="http://www.gnu.org/licenses/gpl.html">http://www.gnu.org/licenses/gpl.html</a>
+
 ## Contents
 
 1. Quick Start
@@ -7,9 +13,8 @@
 3. Use and Options
 4. Skinning/CSS
 5. Searching
-6. Global Function Replacement
-7. Contact & ToField Object APIs
-8. Credits
+6. Contact & ToField Object APIs
+7. Credits
 
 ## Quick Start
 
@@ -42,7 +47,7 @@ In "ajax mode," you should follow this pattern:
 	jQuery('#send-message input[name=to]').toField({
 		search: function(text) {
 			var toField = this;
-			$.get('/path/to/contact-list-script', { 
+			$.get('/path/to/contact-list-script.php', { 
 					search: text, 
 					maxSuggestions: 10 
 				},
@@ -74,24 +79,25 @@ If responsiveness is more important than load time or your list of contacts will
 
 As noted in the Quick Start, the plugin is invoked by calling `toField()` on the result of a jQuery selection. That selection should contain at least one `<input>` element of type `text`. The plugin will hide the input element and replace it with an interactive widget of equal initial dimensions.
 
+### Options
+
 The `toField()` function takes a single argument, a hash of options. Available options, with their defaults, are the following:
 
-	{
-		contacts: [],
-		maxTokenRows: 4,
-		maxSuggestions: 10,
-		maxSuggestionRows: 5,
-		acceptAdHoc: true,
-		idleDelay: 100,
-		scrollbarSize: 18,
-		searchKeys: ['name', 'identifier'],
-		search: $.fn.toField.search,
-		setFormInput: $.fn.toField.setFormInput,
-		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
-		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
-		truncateTokenToFit: $.fn.toField.truncateTokenToFit,
-		ready: null
-	};
+
+	contacts: [],
+	maxTokenRows: 4,
+	maxSuggestions: 10,
+	maxSuggestionRows: 5,
+	acceptAdHoc: true,
+	idleDelay: 100,
+	scrollbarSize: 18,
+	searchKeys: ['name', 'identifier'],
+	search: $.fn.toField.search,
+	setFormInput: $.fn.toField.setFormInput,
+	getResultItemMarkup: $.fn.toField.getResultItemMarkup,
+	getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
+	truncateTokenToFit: $.fn.toField.truncateTokenToFit,
+	ready: null
 
 #### {ContactData[] | Function} options.contacts
 
@@ -113,10 +119,6 @@ Sets the max number of suggestions displayed in the auto-suggest list before the
 
 If true, the to:field will allow users to input strings not present in the list of available contacts. If false, only contacts provided as a result of either ajax or internal searches can be selected and added to the to:field.
 
-#### {ContactData[] | undefined} options.search({String} searchText)
-
-Override the built-in search function. This property is a function that takes a single string argument and returns either an array of search results, or nothing. In the latter case, you can asynchronously inform the to:field of your search results by calling `handleExternalSearchResults` on the ToField object. See Quick Start above for an example, or Contact & ToField Object APIs below for more information.
-
 #### {Number} options.idleDelay
 
 The number of milliseconds idle time to wait before invoking search on the current user's input text. This provides a buffer so that expensive ajax requests or search routines are not run after every single keystroke. This number can usually be lower when running internal searches, and may need to be somewhat higher when running ajax searches.
@@ -128,6 +130,10 @@ The to:field assumes a scrollbar size for layout purposes. You probably won't ne
 #### {Hash} options.searchKeys
 
 An array of keys to search over in contact objects. See Searching below for more information.
+
+#### {ContactData[] | undefined} options.search({String} searchText)
+
+Override the built-in search function. This property is a function that takes a single string argument and returns either an array of search results, or nothing. In the latter case, you can asynchronously inform the to:field of your search results by calling `handleExternalSearchResults` on the ToField object, passing an array of contacts. The field will display this list as search hits. See Quick Start above for an example, or Contact & ToField Object APIs below for more information.
 
 #### options.setFormInput({Contact[]} selectedContacts, {jQuery} jqInput)
 
@@ -164,7 +170,7 @@ Note that these tokens are _not_ enclosed in a list, so you should not return th
 
 #### options.truncateTokenToFit({jQuery} jqToken, {Number} maxWidth)
 
-This function iteratively truncates the text in a token until it fits within the passed width and is called when tokens are too wide to fit in a single row. You may want to override this if you provide your own token markup because the built-in truncation may mangle your markup. You may set this option to false to prevent the truncation from happening altogether. The default implementation is the following:
+This function iteratively truncates the text in a token until it fits within the passed width and is called when tokens are too wide to fit in a single row. You may want to override this if you provide your own token markup because the built-in truncation may mangle your markup. You may set this option to `false` to prevent the truncation from happening altogether. The default implementation is the following:
 
 	$.fn.toField.truncateTokenToFit = function(jqToken, maxWidth) {
 		var safety = 0;	// avoid accidental inifinite loop
@@ -180,6 +186,27 @@ The function is passed the jQuery-wrapped token and the target pixel width. We p
 #### options.ready({ToField} toField)
 
 This function will be invoked when the to field is ready for use.
+
+### Mitigating Page Load Time
+
+If you are using the plugin's built-in search and need to load, say, thousands of contacts, you might try loading that data over ajax after page load, rather than loading them via a script in the page's header. This will make the initial page load faster. For example:
+
+	$(function() {
+		$.get(
+			'/path/to/contact-list-script.php',
+			function(data) {
+				$('#send-message input[name=to]').toField({
+					contacts: data,
+					ready: function() {
+						$('#loading').hide();
+					}
+				});
+			},
+			'json'
+		);
+	});
+
+This will defer the loading and sorting work required until after the page has loaded. When the to field has finished sorting, the `ready` callback will be invoked, and here we just hide some element with a "loading" message.
 
 ## Skinning/CSS
 
@@ -324,24 +351,6 @@ As before, the order of your custom search in the searchKeys array determines wh
 
 **Note:** You don't need to filter out duplicate hits from earlier searches--the to:field plugin will do that for you.
 
-
-## Global Function Replacement
-
-You can replace the following methods for every to:field instance on a page:
-
-- getResultItemMarkup
-- getContactTokenMarkup
-- search
-- setFormInput
-- truncateTokenToFit
-
-To globally replace one of these methods, define it as follows, after including jquery.tofield.js and before attaching the to:field plugin to any inputs.
-
-	$.fn.toField.getResultItemMarkup = function(contact) {
-		/* ... my implementation ... */
-	};
-
-In each of these methods, the `this` reference will refer to the owning ToField object. For more detail on each function, see its entry in the Use and Options section above.
 
 ## Contact & ToField Object APIs
 
