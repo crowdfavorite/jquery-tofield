@@ -6,7 +6,7 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<title>To: Field Tests</title>
 	<script type="text/javascript" charset="utf-8" src="jquery-1.3.2.js"></script>
-	<script type="text/javascript" charset="utf-8" src="../jquery.tofield.js"></script>
+	<script type="text/javascript" charset="utf-8" src="../jquery.tofield/jquery.tofield.js"></script>
 	<script type="text/javascript" charset="utf-8">
 		jQuery(document).ready(function() {
 			jQuery('input[name=test-1]').toField({
@@ -32,7 +32,7 @@
 			var ajaxSearch = function(text) {
 				var toField = this;
 				$.get(
-					'/jquery.tofield/tests/internal-only/endpoint.php',
+					'/trunk/tests/internal-only/endpoint.php',
 					{ fullNames: true, text: text, maxSuggestions: 20 },
 					function(data, status) {
 						toField.handleExternalSearchResults(data);
@@ -50,7 +50,7 @@
 
 			
 			jQuery.get(
-				'/jquery.tofield/tests/internal-only/endpoint.php',
+				'/trunk/tests/internal-only/endpoint.php',
 				{ fullNames: 1 },
 				function(data) {
 					jQuery('input[name=test-5]').toField({
@@ -108,7 +108,7 @@
 	</script>
 	
 
-	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
+	<link rel="stylesheet" href="../jquery.tofield/jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
 <!--
 	<link rel="stylesheet" href="../jquery.tofield.smoke.css" type="text/css" media="screen" title="no title" charset="utf-8">
 -->
