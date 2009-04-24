@@ -46,7 +46,13 @@
 		}
 		
 		options.searchKeys = normalizedSearchKeys;
-		
+		/*
+		$.each ($.fn.toField.defaults, function(key, value) {
+			if (typeof value == 'function') {
+				console.log(key + ': ' + value.toString())
+			}
+		});
+		*/
 		var opts = $.extend(true, {}, $.fn.toField.defaults, options);
 		
 		// iterate over matched elements
@@ -105,7 +111,6 @@
 		return results;
 	};
 
-
 	$.fn.toField.getResultItemMarkup = function(contact) {
 		return '\
 			<li class="search-result">\
@@ -121,9 +126,18 @@
 				' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
 			</a>';
 	};
-	console.log('wtf1');
+
 	$.fn.toField.setFormInput = function(contacts, jqInput) {
 		jqInput.val($.map(contacts, function(contact) { return contact.identifier; }).join(','));
+	};
+	
+	$.fn.toField.truncateTokenToFit = function(jqToken, maxWidth) {
+		var safety = 0;	// avoid accidental inifinite loop
+		var text = $.trim(jqToken.html());	// assumes markup structure
+		while (jqToken.outerWidth(true) > maxWidth && safety++ < 100) {
+			jqToken.html(text.substr(0, text.length - 2) + '&hellip;');
+			text = jqToken.html();
+		}
 	};
 
 	$.fn.toField.defaults = {
@@ -138,7 +152,8 @@
 		search: $.fn.toField.search,
 		setFormInput: $.fn.toField.setFormInput,
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
-		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
+		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
+		truncateTokenToFit: $.fn.toField.truncateTokenToFit
 	};	
 
 	// simple observer pattern
@@ -271,10 +286,10 @@
 		jqFormInput.hide().before(this.jqContainer);
 		this.insertInlineInput(false);
 		this.jqContainer.mousedown(this.handleMouseDown._cfBind(this));
-		this.jqContainer.mouseup(this.handleMouseUp._cfBind(this));
 
 		this.addObserver('searchTextChanged', this.handleSearchTextChanged._cfBind(this));
 		this.addObserver('searchCompleted', this.handleSearchCompleted._cfBind(this));
+		this.addObserver('sortingCompleted', this.handleSortingCompleted._cfBind(this));
 		this.calculateSearchParams();
 		return this;
 	};
@@ -315,11 +330,11 @@
 				}
 			}
 		},
-		handleMouseUp: function(event) {
-		},
 		
 		probablyHasScrollbars: function() {
-			return this.jqContainer.css('overflow') == 'auto';
+			var maybeCanHas = false;
+			$.each(['overflow', 'overflow-x', 'overflow-y'], (function(i, key) { if (this.jqContainer.css(key) == 'auto') maybeCanHas = true; })._cfBind(this));
+			return maybeCanHas;
 		},
 		
 		pointOverScrollbars: function(pageX, pageY) {
@@ -621,10 +636,27 @@
 		},
 
 		sortKeyedContacts: function() {
+			var checkins = {};
+			$.each(this.sortedContacts, function(key, value) { checkins[key] = false; });
+			this.notifyObservers('sortingStarted');
+			var toField = this;
 			for (var key in this.sortedContacts) {
-				this.sortedContacts[key] = this.contacts.slice(0);	// make a copy (references only)
-				this.currentSortKey = key;
-				this.sortedContacts[key].sort();
+				setTimeout((function(key) {
+					return function() {
+						//console.log('sorting ' + key);
+						toField.sortedContacts[key] = toField.contacts.slice(0);	// make a copy (references only)
+						toField.currentSortKey = key;
+						toField.sortedContacts[key].sort();
+
+						checkins[key] = true;
+						var done = true;
+						$.each(checkins, function(k, checkedIn) { if (!checkedIn) done = false; });
+						if (done) {
+							//console.dir(checkins);
+							toField.notifyObservers('sortingCompleted');
+						}
+					};
+				})(key), 10);
 			}
 			this.currentSortKey = null;
 		},
@@ -997,6 +1029,11 @@
 			if (this.options.acceptAdHoc) {
 				this.searchResults.push(this.getMirrorContact());
 			}
+			else if (results.length == 0) {
+				var mirror = this.getMirrorContact();
+				mirror.setSelectable(false);
+				this.searchResults.push(mirror);
+			}			
 			for (var i = 0; i < results.length; i++) {
 				if (!results[i].isSelected()) {
 					this.searchResults.push(results[i]);
@@ -1034,7 +1071,11 @@
 				}
 			}
 		},
-		
+		handleSortingCompleted: function() {
+			if (this.options.ready) {
+				this.options.ready(this);
+			}
+		},
 		handleContactSelectionStateChanged: function(change) {
 			if (change.state == true) {
 				if (change.contact == this.mirrorContact) {
@@ -1067,8 +1108,8 @@
 			this.jqContainer.children().each(function() {
 				var jqThis = $(this);
 				var maxWidth = jqThis.parent().innerWidth() - toField.options.scrollbarSize;
-				if (jqThis.outerWidth() > maxWidth) {
-					truncateToFit(jqThis, maxWidth);
+				if (toField.options.truncateTokenToFit && jqThis.outerWidth() > maxWidth) {
+					toField.options.truncateTokenToFit(jqThis, maxWidth);
 				}
 				if (jqThis.position().top != lastY) {
 					rows++;
@@ -1175,9 +1216,12 @@
 	};
 	$.extend(true, MirrorContact.prototype, Contact.prototype, {
 		superclass: Contact,	// kinda-sorta inheritance ... meh.
+		selectable: true,
 		select: function() {
-			this.toField.removeObserver('searchTextChanged', this.handleSearchTextChanged);
-			this.superclass.prototype.select.apply(this);
+			if (this.selectable) {
+				this.toField.removeObserver('searchTextChanged', this.handleSearchTextChanged);
+				this.superclass.prototype.select.apply(this);
+			}
 		},
 		isMirror: function() {
 			return true;
@@ -1190,9 +1234,19 @@
 			return item;
 		},
 		handleSearchTextChanged: function(text) {
-			this.setIdentifier(text);
-			this.setName(text);
-			this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());	// preserve the node and jquery object
+			if (this.selectable) {
+				this.setIdentifier(text);
+				this.setName(text);
+				this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());	// preserve the node and jquery object
+			}
+		},
+		setSelectable: function(selectable) {
+			this.selectable = selectable;
+			if (!this.selectable) {
+				this.setIdentifier('No Match');
+				this.setName('No Match');
+				this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());
+			}
 		}
 	});
 
@@ -1223,7 +1277,6 @@
 		jqToken: null,
 		toField: null,
 		jqContainer: null,
-		truncateIndex: -1,
 		
 		handleContactSelectionStateChanged: function(change) {
 			if (change.state == false) {
@@ -1248,20 +1301,6 @@
 			var elementXPos = this.jqToken.offset().left;
 			return (pageX - elementXPos > xLeft);
 		},
-/*		
-		truncateToFit: function(width) {
-			var w = this.jqToken.outerWidth();
-
-			// this is ugly.
-			var originalContact = this.contact;
-			this.contact = $.extend(true, {}, this.contact);
-			while (w > width) {
-				this.contact.name = this.contact.name.substr(0, this.contact.name.length - 2) + '&hellip;';
-				this.jqToken.html($(toField.getContactTokenMarkup(contact)).html());
-			}
-			this.contact = this.originalContact;
-		},
-*/
 		handleMouseMove: function(event) {
 			if (this.pointIsOverX(event.pageX, event.pageY)) {
 				this.jqToken.addClass('x-hover');
@@ -1278,26 +1317,6 @@
 			}
 		}
 	});
-
-	var truncateToFit = function(jqItem, width) {
-		var node = jqItem.get(0);
-		if (node) {
-			var safety = 0;
-			// node[property] doesn't seem to work as a setter ...
-			if (node.textContent) {
-				node.textContent = $.trim(node.textContent);
-				while (jqItem.outerWidth(true) > width && safety++ < 100) {
-					node.textContent = node.textContent.substr(0, node.textContent.length - 2) + $('<p>&#133;</p>').html();		// um
-				}
-			}
-			else if (node.innerText) {
-				node.textContent = $.trim(node.textContent);
-				while (jqItem.outerWidth(true) > width && safety++ < 100) {
-					node.innerText = node.innerText.substr(0, node.innerText.length - 2) + $('<p>&#133;</p>').html();		// um
-				}
-			}
-		}
-	};
 
 	if (!Array.prototype.indexOf) {
 		Array.prototype.indexOf = function(elt /*, from*/) {

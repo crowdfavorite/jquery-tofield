@@ -35,7 +35,7 @@ In either case, the plugin expects to be told about these contacts via an array 
 		]
 	});
 
-The `identifier` property is required and each string must be unique across the list of contacts. It is the string that will be put into the form input's value, in a comma-separated list. The name property is optional, but by default it will be used to display the contact.
+The `identifier` and `name` properties are required. Each identifier must be unique across the list of contacts. It is the string that will be put into the form input's value, in a comma-separated list.
 
 In "ajax mode," you should follow this pattern:
 
@@ -88,7 +88,9 @@ The `toField()` function takes a single argument, a hash of options. Available o
 		search: $.fn.toField.search,
 		setFormInput: $.fn.toField.setFormInput,
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
-		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup
+		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
+		truncateTokenToFit: $.fn.toField.truncateTokenToFit,
+		ready: null
 	};
 
 #### {ContactData[] | Function} options.contacts
@@ -111,7 +113,7 @@ Sets the max number of suggestions displayed in the auto-suggest list before the
 
 If true, the to:field will allow users to input strings not present in the list of available contacts. If false, only contacts provided as a result of either ajax or internal searches can be selected and added to the to:field.
 
-#### {ContactData[] | undefined} options.search({String})
+#### {ContactData[] | undefined} options.search({String} searchText)
 
 Override the built-in search function. This property is a function that takes a single string argument and returns either an array of search results, or nothing. In the latter case, you can asynchronously inform the to:field of your search results by calling `handleExternalSearchResults` on the ToField object. See Quick Start above for an example, or Contact & ToField Object APIs below for more information.
 
@@ -127,11 +129,11 @@ The to:field assumes a scrollbar size for layout purposes. You probably won't ne
 
 An array of keys to search over in contact objects. See Searching below for more information.
 
-#### options.setFormInput({Contact[]}, {jQuery})
+#### options.setFormInput({Contact[]} selectedContacts, {jQuery} jqInput)
 
 By default, the `identifier` property in every contact is added to the original input form element, in a comma-separated list. You can override that behavior by setting this option. The function will be passed an array of selected contact objects, and a jQuery object wrapping the form input.
 
-#### {String} options.getResultItemMarkup({Contact})
+#### {String} options.getResultItemMarkup({Contact} contact)
 
 You can override the built-in markup that creates a result item in the search result list. This function will be passed the contact that should be represented. It should return a markup representation of the contact for the pop-up results list, embedded in a single `li` element. For reference, here is the default implementation:
 
@@ -145,7 +147,7 @@ You can override the built-in markup that creates a result item in the search re
 
 See Contact API below for information about using Contact objects.
 
-#### {String} options.getContactTokenMarkup({Contact})
+#### {String} options.getContactTokenMarkup({Contact} contact)
 
 This function determines the markup used to generate tokens in the to:field. You can override this markup by setting this option. For reference, here is the default implementation:
 
@@ -159,6 +161,25 @@ This function determines the markup used to generate tokens in the to:field. You
 	};
 
 Note that these tokens are _not_ enclosed in a list, so you should not return them in `<li>` elements. See the Contact API below for information about using Contact objects.
+
+#### options.truncateTokenToFit({jQuery} jqToken, {Number} maxWidth)
+
+This function iteratively truncates the text in a token until it fits within the passed width and is called when tokens are too wide to fit in a single row. You may want to override this if you provide your own token markup because the built-in truncation may mangle your markup. You may set this option to false to prevent the truncation from happening altogether. The default implementation is the following:
+
+	$.fn.toField.truncateTokenToFit = function(jqToken, maxWidth) {
+		var safety = 0;	// avoid accidental inifinite loop
+		var text = $.trim(jqToken.html());	// assumes markup structure
+		while (jqToken.outerWidth(true) > maxWidth && safety++ < 100) {
+			jqToken.html(text.substr(0, text.length - 2) + '&hellip;');
+			text = jqToken.html();
+		}
+	};
+
+The function is passed the jQuery-wrapped token and the target pixel width. We pass true to jQuery's `outerWidth` function to include the token's margins in the calculation.
+
+#### options.ready({ToField} toField)
+
+This function will be invoked when the to field is ready for use.
 
 ## Skinning/CSS
 
@@ -312,6 +333,7 @@ You can replace the following methods for every to:field instance on a page:
 - getContactTokenMarkup
 - search
 - setFormInput
+- truncateTokenToFit
 
 To globally replace one of these methods, define it as follows, after including jquery.tofield.js and before attaching the to:field plugin to any inputs.
 

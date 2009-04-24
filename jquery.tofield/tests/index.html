@@ -55,7 +55,29 @@
 				function(data) {
 					jQuery('input[name=test-5]').toField({
 						contacts: data,
-						idleDelay: 30,
+						ready: function() {
+							$('#loading').hide();
+						},
+						acceptAdHoc: false,
+						idleDelay: 30,/*
+						getResultItemMarkup: function(contact) {
+							var origin = contact.origin ? '<div class="contact-origin">' + contact.origin + '</div>' : '';
+							return '\
+								<li class="search-result">\
+									' + origin + '\
+									' + (!contact.isMirror() ? '<div class="contact-name">' + contact.name + '</div>' : '') + '\
+									<div class="contact-identifier">&lt;' + contact.identifier + '&gt;</div>\
+								</li>';
+						},
+						getContactTokenMarkup: function(contact) {
+							var customClass = contact.getCustomClass();
+							return '\
+								<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
+									<span class="close"></span>\
+									' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
+								</a>';
+						},
+						*/
 						searchKeys: [
 							'firstName', 
 							'lastName', 
@@ -138,9 +160,69 @@
 			<legend>Long Input</legend>
 			<input name="test-4" type="text" size="80"/>
 		</fieldset>
-		<fieldset>
+		<fieldset class="smoke">
+			<!--
+			<style type="text/css" media="screen">
+				input {
+					height:20px;
+				}
+				.to-field {
+					padding-top:7px;
+					background:url(../images/smoke-highlight-shadowed-bg.png) repeat-x;
+				}
+				.to-field input {
+					color: #333;
+					font-size:14px;
+					font-weight:bold;
+					margin-left:3px;
+				}
+				.close {
+					float:right;
+					background: url(../images/close-token-round.png) no-repeat;
+					position: absolute;
+					right:5px;
+					top: 4px;
+					padding: 8px 8px;
+				}
+				.x-hover .close {
+					background: url(../images/close-token-round-active.png) no-repeat;
+				}
+				a.contact-token, .smoke a.contact-token:hover {
+					background: #222;
+					color:#f8f8f8;
+					font-size: 14px;
+					font-weight: bold;
+					border: none;
+					-moz-border-radius: 11px;
+					-webkit-border-radius: 11px;
+					border-radius: 11px;
+					padding: 5px 27px 3px 8px;
+					opacity: .85;
+					margin: 3px 4px;
+				}
+				ul.search-results {
+					background:#333 url(../images/results-bg-300.png) no-repeat top center;
+					color: #eee;
+				}
+				ul.search-results li {
+					color:#eee;
+				}
+				ul.search-results li .contact-identifier {
+					color:#ddd;
+				}
+				ul.search-results li.highlighted {
+					background: #777;
+				}
+				.contact-origin {
+					float:right;
+					font-weight: bold;
+					font-size:11px;
+				}
+			</style>
+			-->
 			<legend>Client-side search on big list</legend>
-			<input name="test-5" type="text" size="20"/>
+			<input name="test-5" type="text" size="40"/>
+			<div id="loading">loading ...</div>
 		</fieldset>
 
 		<p><input type="submit" value="Continue &rarr;"></p>
