@@ -1,0 +1,198 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>To: Field Tests</title>
+	<script type="text/javascript" charset="utf-8" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+	<script type="text/javascript" charset="utf-8" src="../jquery.tofield.packed.js"></script>
+	<script type="text/javascript" charset="utf-8">
+		jQuery(document).ready(function() {
+			
+			// set up the basic demo
+			jQuery('input[name=basic-test]').toField({
+				contacts: gPeople
+			});
+			
+			
+			// set up the customized demo
+			jQuery('input[name=advanced-test]').toField({
+				contacts: gPeople,
+				ready: function() {
+					$('#loading').hide();
+				},
+				maxSuggestions:50,
+				acceptAdHoc: false,
+				idleDelay: 30,
+				searchKeys: [
+					'firstName', 
+					'lastName', 
+					'location', 
+					'domain', 
+					'identifier', { 
+						property: 'name', 
+						search: function(contacts, key, text, suggestionsToGo) {
+							var results = [];
+							$.each(contacts, function(i, contact) {
+								if (contact[key].toLowerCase().indexOf(text) != -1) {
+									results.push(contact);
+								}
+								if (results.length >= suggestionsToGo) {
+									return false;
+								}
+							});
+							return results;
+						}
+					}
+				],
+				getResultItemMarkup: function(contact) {
+					return '\
+						<li class="search-result">\
+							' + (!contact.isMirror() ? '<div class="contact-location">' + contact.location + '</div>' : '') + '\
+							<div class="contact-name">' + contact.name + '</div>\
+							<div class="contact-identifier">&lt;' + contact.identifier + '&gt;</div>\
+						</li>';
+				}
+			});
+			
+			// other stuff ...
+			jQuery('#advanced').submit(function(event) {
+				jQuery('#results-advanced').val(jQuery('input[name=advanced-test]').val().replace(/,/g, ', \n'));
+				return false;
+			});
+			jQuery('#basic').submit(function(event) {
+				jQuery('#results-basic').val(jQuery('input[name=basic-test]').val().replace(/,/g, ', \n'));
+				return false;
+			});
+			jQuery('#toggle-code-basic').click(function() {
+				jQuery('#code-basic').slideToggle();
+			});
+			jQuery('#toggle-code-advanced').click(function() {
+				jQuery('#code-advanced').slideToggle();
+			});
+
+
+		});
+	</script>
+	<link rel="stylesheet" href="../jquery.tofield.css" type="text/css" media="screen" title="no title" charset="utf-8">
+	<style type="text/css" media="screen">
+		form {
+			width:400px;
+			float:left;
+			margin:10px 30px;
+		}
+		fieldset p {
+			color:#555;
+			font-size:13px;
+		}
+		/* We add the location into the contact markup. Here is the style for it. */
+		.contact-location {
+			float:right;
+			font-weight:normal;
+		}
+		/* These styles refer to the "customClass" field in the contact list */
+		li.France {
+			background-color:orange;
+		}
+		li.Japan {
+			background-color:pink;
+		}
+		li.Ireland {
+			background-color:lightgreen;
+		}
+		li.Greece {
+			background-color:skyblue;
+		}
+
+	</style>
+</head>
+<body>
+	
+	<p>Both of these examples use the same data, embedded into the page. See the documentation for information about using the to:field in "ajax mode".</p>
+	
+	<form id="basic" action="" method="get" accept-charset="utf-8">
+		<fieldset>
+			<legend>No Customization</legend>
+			<input name="basic-test" type="text" />
+		</fieldset>
+		<p><input type="submit" value="Show Submission &rarr;"></p>
+		<textarea id="results-basic" cols="40" rows="4"></textarea>
+		<div>
+			<p>Using default settings, type the letters of a name, or an email address. Try "Craig" or "Alana".</p>
+			<a id="toggle-code-basic" href="#">Show/Hide Code</a>
+			<textarea cols="50" rows="5" id="code-basic" style="display:none">
+jQuery('input[name=basic-test]').toField({
+	contacts: gPeople
+});
+			</textarea>
+		</div>
+
+	</form>
+	
+	<form id="advanced" action="" method="get" accept-charset="utf-8">
+		<fieldset>
+			<legend>Customized</legend>
+			<input name="advanced-test" type="text" size="40"/>
+			<div id="loading">loading ...</div>
+		</fieldset>
+		<p><input type="submit" value="Show Submission &rarr;"></p>
+		<textarea id="results-advanced" cols="40" rows="4"></textarea>
+		<div>
+			<p>Here you can search by first name, last name, location (country), email address domain (eg, "hotmail.example.com"), by email address, or for a fragment in a name.</p>
+			<p>Try typing "Spain" for example, or "Reeves".</p>
+			<p>Overridden item markup shows contact location.</p>
+			<p>Custom class colors are based on contact location.</p>
+			<p>This to field will not accept ad-hoc contacts.</p>
+
+			<a id="toggle-code-advanced" href="#">Show/Hide Code</a>
+			<textarea rows="40" cols="80" id="code-advanced" style="display:none">
+jQuery('input[name=advanced-test]').toField({
+	contacts: gPeople,
+	ready: function() {
+		$('#loading').hide();
+	},
+
+	acceptAdHoc: false,
+	idleDelay: 30,
+	searchKeys: [
+		'firstName', 
+		'lastName', 
+		'location', 
+		'domain', 
+		'identifier', { 
+			property: 'name', 
+			search: function(contacts, key, text, suggestionsToGo) {
+				var results = [];
+				$.each(contacts, function(i, contact) {
+					if (contact[key].toLowerCase().indexOf(text) != -1) {
+						results.push(contact);
+					}
+					if (results.length >= suggestionsToGo) {
+						return false;
+					}
+				});
+				return results;
+			}
+		}
+	],
+	getResultItemMarkup: function(contact) {
+		return '\
+			<li class="search-result">\
+				' + (!contact.isMirror() ? '<div class="contact-location">' + contact.location + '</div>' : '') + '\
+				<div class="contact-name">' + contact.name + '</div>\
+				<div class="contact-identifier">&lt;' + contact.identifier + '&gt;</div>\
+			</li>';
+	}
+});
+			</textarea>
+		</div>
+
+	</form>
+
+	<script type="text/javascript" charset="utf-8">
+		var gPeople = [{"name":"Abe Lambert","domain":"hotmail.example.com","identifier":"abe@hotmail.example.com","customClass":"USA","lastName":"Lambert","firstName":"Abe","location":"USA"},{"name":"Aisling Nelson","domain":"hotmail.example.com","identifier":"aisling@hotmail.example.com","customClass":"Ireland","lastName":"Nelson","firstName":"Aisling","location":"Ireland"},{"name":"Alana Rosales","domain":"aol.example.com","identifier":"alana@aol.example.com","customClass":"USA","lastName":"Rosales","firstName":"Alana","location":"USA"},{"name":"Albrecht Burgess","domain":"gmail.example.com","identifier":"albrecht@gmail.example.com","customClass":"Germany","lastName":"Burgess","firstName":"Albrecht","location":"Germany"},{"name":"Amnesty Cervantes","domain":"hotmail.example.com","identifier":"amnesty@hotmail.example.com","customClass":"USA","lastName":"Cervantes","firstName":"Amnesty","location":"USA"},{"name":"Anabel Daniels","domain":"yahoo.example.com","identifier":"anabel@yahoo.example.com","customClass":"USA","lastName":"Daniels","firstName":"Anabel","location":"USA"},{"name":"Aoife Abbott","domain":"aol.example.com","identifier":"aoife@aol.example.com","customClass":"Ireland","lastName":"Abbott","firstName":"Aoife","location":"Ireland"},{"name":"Asia Saunders","domain":"gmail.example.com","identifier":"asia@gmail.example.com","customClass":"Greece","lastName":"Saunders","firstName":"Asia","location":"Greece"},{"name":"Behrooz Dominguez","domain":"hotmail.example.com","identifier":"behrooz@hotmail.example.com","customClass":"USA","lastName":"Dominguez","firstName":"Behrooz","location":"USA"},{"name":"Blythe Frawley","domain":"yahoo.example.com","identifier":"blythe@yahoo.example.com","customClass":"U.K.","lastName":"Frawley","firstName":"Blythe","location":"U.K."},{"name":"Bree Nelson","domain":"gmail.example.com","identifier":"bree@gmail.example.com","customClass":"USA","lastName":"Nelson","firstName":"Bree","location":"USA"},{"name":"Caden Hicks","domain":"aol.example.com","identifier":"caden@aol.example.com","customClass":"Scotland","lastName":"Hicks","firstName":"Caden","location":"Scotland"},{"name":"Carrie Dominguez","domain":"yahoo.example.com","identifier":"carrie@yahoo.example.com","customClass":"USA","lastName":"Dominguez","firstName":"Carrie","location":"USA"},{"name":"Chance Reeves","domain":"yahoo.example.com","identifier":"chance@yahoo.example.com","customClass":"U.K.","lastName":"Reeves","firstName":"Chance","location":"U.K."},{"name":"Constant Blanchard","domain":"gmail.example.com","identifier":"constant@gmail.example.com","customClass":"U.K.","lastName":"Blanchard","firstName":"Constant","location":"U.K."},{"name":"Cosmo Garcia","domain":"aol.example.com","identifier":"cosmo@aol.example.com","customClass":"Greece","lastName":"Garcia","firstName":"Cosmo","location":"Greece"},{"name":"Craig Hale","domain":"aol.example.com","identifier":"craig@aol.example.com","customClass":"Ireland","lastName":"Hale","firstName":"Craig","location":"Ireland"},{"name":"Dami\u00e1n Wang","domain":"hotmail.example.com","identifier":"dami\u00e1n@hotmail.example.com","customClass":"Greece","lastName":"Wang","firstName":"Dami\u00e1n","location":"Greece"},{"name":"Dan Thornton","domain":"hotmail.example.com","identifier":"dan@hotmail.example.com","customClass":"USA","lastName":"Thornton","firstName":"Dan","location":"USA"},{"name":"Delilah Meadows","domain":"hotmail.example.com","identifier":"delilah@hotmail.example.com","customClass":"USA","lastName":"Meadows","firstName":"Delilah","location":"USA"},{"name":"Emory Becker","domain":"aol.example.com","identifier":"emory@aol.example.com","customClass":"Germany","lastName":"Becker","firstName":"Emory","location":"Germany"},{"name":"Esperanza Kemp","domain":"aol.example.com","identifier":"esperanza@aol.example.com","customClass":"Spain","lastName":"Kemp","firstName":"Esperanza","location":"Spain"},{"name":"Gaston Goodman","domain":"yahoo.example.com","identifier":"gaston@yahoo.example.com","customClass":"France","lastName":"Goodman","firstName":"Gaston","location":"France"},{"name":"Grace Dominguez","domain":"aol.example.com","identifier":"grace@aol.example.com","customClass":"USA","lastName":"Dominguez","firstName":"Grace","location":"USA"},{"name":"Heike Reeves","domain":"aol.example.com","identifier":"heike@aol.example.com","customClass":"USA","lastName":"Reeves","firstName":"Heike","location":"USA"},{"name":"Irad Mayo","domain":"gmail.example.com","identifier":"irad@gmail.example.com","customClass":"USA","lastName":"Mayo","firstName":"Irad","location":"USA"},{"name":"Isabel Reeves","domain":"yahoo.example.com","identifier":"isabel@yahoo.example.com","customClass":"USA","lastName":"Reeves","firstName":"Isabel","location":"USA"},{"name":"Isamu Saunders","domain":"aol.example.com","identifier":"isamu@aol.example.com","customClass":"India","lastName":"Saunders","firstName":"Isamu","location":"India"},{"name":"Jacinta Fernandez","domain":"hotmail.example.com","identifier":"jacinta@hotmail.example.com","customClass":"Spain","lastName":"Fernandez","firstName":"Jacinta","location":"Spain"},{"name":"Jackie Frawley","domain":"yahoo.example.com","identifier":"jackie@yahoo.example.com","customClass":"France","lastName":"Frawley","firstName":"Jackie","location":"France"},{"name":"Jackson Goodman","domain":"hotmail.example.com","identifier":"jackson@hotmail.example.com","customClass":"USA","lastName":"Goodman","firstName":"Jackson","location":"USA"},{"name":"Jimbo Potts","domain":"aol.example.com","identifier":"jimbo@aol.example.com","customClass":"USA","lastName":"Potts","firstName":"Jimbo","location":"USA"},{"name":"Juan Page","domain":"gmail.example.com","identifier":"juan@gmail.example.com","customClass":"Spain","lastName":"Page","firstName":"Juan","location":"Spain"},{"name":"Karel Oconnell","domain":"aol.example.com","identifier":"karel@aol.example.com","customClass":"Germany","lastName":"Oconnell","firstName":"Karel","location":"Germany"},{"name":"Katarina Wang","domain":"gmail.example.com","identifier":"katarina@gmail.example.com","customClass":"USA","lastName":"Wang","firstName":"Katarina","location":"USA"},{"name":"Kiril Conway","domain":"aol.example.com","identifier":"kiril@aol.example.com","customClass":"Greece","lastName":"Conway","firstName":"Kiril","location":"Greece"},{"name":"Mele Fernandez","domain":"gmail.example.com","identifier":"mele@gmail.example.com","customClass":"USA","lastName":"Fernandez","firstName":"Mele","location":"USA"},{"name":"Nathaniel Nelson","domain":"aol.example.com","identifier":"nathaniel@aol.example.com","customClass":"USA","lastName":"Nelson","firstName":"Nathaniel","location":"USA"},{"name":"Nissiah Arias","domain":"hotmail.example.com","identifier":"nissiah@hotmail.example.com","customClass":"USA","lastName":"Arias","firstName":"Nissiah","location":"USA"},{"name":"Nitya Abbott","domain":"aol.example.com","identifier":"nitya@aol.example.com","customClass":"USA","lastName":"Abbott","firstName":"Nitya","location":"USA"},{"name":"Pearl Campbell","domain":"aol.example.com","identifier":"pearl@aol.example.com","customClass":"USA","lastName":"Campbell","firstName":"Pearl","location":"USA"},{"name":"Peyton Garcia","domain":"yahoo.example.com","identifier":"peyton@yahoo.example.com","customClass":"U.K.","lastName":"Garcia","firstName":"Peyton","location":"U.K."},{"name":"Polly Lambert","domain":"aol.example.com","identifier":"polly@aol.example.com","customClass":"USA","lastName":"Lambert","firstName":"Polly","location":"USA"},{"name":"Rima Nelson","domain":"gmail.example.com","identifier":"rima@gmail.example.com","customClass":"USA","lastName":"Nelson","firstName":"Rima","location":"USA"},{"name":"Shahrokh Dominguez","domain":"gmail.example.com","identifier":"shahrokh@gmail.example.com","customClass":"USA","lastName":"Dominguez","firstName":"Shahrokh","location":"USA"},{"name":"Thelma Wang","domain":"yahoo.example.com","identifier":"thelma@yahoo.example.com","customClass":"Greece","lastName":"Wang","firstName":"Thelma","location":"Greece"},{"name":"Toby Cervantes","domain":"gmail.example.com","identifier":"toby@gmail.example.com","customClass":"USA","lastName":"Cervantes","firstName":"Toby","location":"USA"},{"name":"Tomoko Fernandez","domain":"yahoo.example.com","identifier":"tomoko@yahoo.example.com","customClass":"Japan","lastName":"Fernandez","firstName":"Tomoko","location":"Japan"},{"name":"Vincent Fernandez","domain":"hotmail.example.com","identifier":"vincent@hotmail.example.com","customClass":"USA","lastName":"Fernandez","firstName":"Vincent","location":"USA"},{"name":"Zelig Rivers","domain":"aol.example.com","identifier":"zelig@aol.example.com","customClass":"USA","lastName":"Rivers","firstName":"Zelig","location":"USA"}];
+	</script>
+	
+</body>
+</html>
