@@ -150,6 +150,25 @@
 			text = jqToken.html();
 		}
 	};
+	
+	$.fn.toField.handleContactSelectionStateChanged = function(change) {
+		if (change.state == true) {
+			if (change.contact == this.mirrorContact) {
+				this.contacts.push(this.mirrorContact);
+				this.mirrorContact = null;		// next call to get will create a new one
+			}
+			var token = construct(Token, [change.contact, this]);
+			token.addObserver('tokenRemoved', this.layoutContainer._cfBind(this));
+			token.addObserver('tokenAdded', this.layoutContainer._cfBind(this));
+			token.addBefore(this.jqInlineInputContainer);
+			this.setSearchText('');
+			this.hideSearchResults();
+			this.jqHighlightedResult = null;
+			this.jqInlineInput.focus();
+		}
+		var selected = $.grep(this.contacts, function(contact) { return contact.isSelected(); });
+		this.setFormInput(selected, this.jqFormInput);
+	};
 
 	$.fn.toField.defaults = {
 		contacts: [],
@@ -168,7 +187,8 @@
 		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
 		truncateTokenToFit: $.fn.toField.truncateTokenToFit,
 		sanitizeText: $.fn.toField.sanitizeText,
-		htmlEscapeText: $.fn.toField.htmlEscapeText
+		htmlEscapeText: $.fn.toField.htmlEscapeText,
+		handleContactSelectionStateChanged: $.fn.toField.handleContactSelectionStateChanged
 	};	
 
 	// simple observer pattern
@@ -259,6 +279,7 @@
 		this.getFormInputValue = options.getFormInputValue._cfBind(this);
 		this.sanitizeText = options.sanitizeText._cfBind(this);
 		this.htmlEscapeText = options.htmlEscapeText._cfBind(this);
+		this.handleContactSelectionStateChanged = options.handleContactSelectionStateChanged._cfBind(this);
 		
 		var initialValues = this.getFormInputValue(jqFormInput);
 		var contacts = (typeof options.contacts == 'function') ? options.contacts() : options.contacts;
@@ -991,25 +1012,6 @@
 			}
 		},
 		
-		handleContactSelectionStateChanged: function(change) {
-			if (change.state == true) {
-				if (change.contact == this.mirrorContact) {
-					this.contacts.push(this.mirrorContact);
-					this.mirrorContact = null;		// next call to get will create a new one
-				}
-				var token = construct(Token, [change.contact, this]);
-				token.addObserver('tokenRemoved', this.layoutContainer._cfBind(this));
-				token.addObserver('tokenAdded', this.layoutContainer._cfBind(this));
-				token.addBefore(this.jqInlineInputContainer);
-				this.setSearchText('');
-				this.hideSearchResults();
-				this.jqHighlightedResult = null;
-				this.jqInlineInput.focus();
-			}
-			var selected = $.grep(this.contacts, function(contact) { return contact.isSelected(); });
-			this.setFormInput(selected, this.jqFormInput);
-		},
-
 		layoutContainer: function() {
 			var containerHeight = this.jqContainer.innerHeight();
 			var contentHeight = 0;
