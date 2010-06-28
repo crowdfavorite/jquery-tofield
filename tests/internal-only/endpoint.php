@@ -3,6 +3,7 @@ $text = isset($_GET['text']) ? $_GET['text'] : '';
 $maxSuggestions = isset($_GET['maxSuggestions']) ? $_GET['maxSuggestions'] : -1;
 
 $fullNames = isset($_GET['fullNames']) ? true : false;
+$forRelease = isset($_GET['forRelease']) ? true : false;
 
 $js = file_get_contents('all.js');
 
@@ -11,11 +12,31 @@ $chunks = explode('gNameData.', $js);
 $output = array();
 
 $domains = array(
-	'gmail.com',
-	'aol.com',
-	'yahoo.com',
-	'hotmail.com'
+	'gmail.example.com',
+	'aol.example.com',
+	'yahoo.example.com',
+	'hotmail.example.com'
 );
+
+function mapOrigin($origin) {
+	switch ($origin){
+		case 'Gaelic': case 'Irish': return 'Ireland';
+		case 'French': return 'France';
+		case 'Japan': case 'Japanese': return 'Japan';
+		case 'American': return 'USA';
+		case 'Greek': return 'Greece';
+		case 'Italian': return 'Italy';
+		case 'Russian': return 'Russia';
+		case 'Chinese': return 'China';
+		case 'Estonian': return 'Estonia';
+		case 'Scottish': return 'Scotland';
+		case 'German': case 'Germanic': return 'Germany';
+		case 'Basque': case 'Spanish': return 'Spain';
+		case 'Sanskrit': return 'India';
+		case 'English': return 'U.K.';
+	}
+	return 'USA';
+}
 
 foreach ($chunks as $chunk) {
 	$json = json_decode(substr($chunk, strpos($chunk, '{'), strrpos($chunk, ';') - strpos($chunk, '{')));
@@ -55,11 +76,29 @@ if ($fullNames) {
 	}
 }
 
-if (!empty($text)) {
-	$output = array_values(array_filter($output, create_function('$item', 'return (stripos($item->name, \''.$text.'\') !== false);')));
-	usort($output, create_function('$a, $b', 'return stripos($a->name, \''.$text.'\') - stripos($b->name, \''.$text.'\');'));
+if (!empty($text) || $forRelease) {
+	if (!empty($text)) {
+		$output = array_values(array_filter($output, create_function('$item', 'return (stripos($item->name, \''.$text.'\') !== false);')));
+		usort($output, create_function('$a, $b', 'return stripos($a->name, \''.$text.'\') - stripos($b->name, \''.$text.'\');'));
+	}
 	if ($maxSuggestions != -1) {
-		$output = array_splice($output, 0, (int)$maxSuggestions);
+		if ($forRelease) {
+			foreach ($output as $obj)  {
+				$obj->customClass = mapOrigin($obj->origin);
+				$obj->location = $obj->customClass;
+				unset($obj->origin);
+				unset($obj->gender);
+				unset($obj->meaning);
+				unset($obj->link);
+			}
+			while (count($output) > (int)$maxSuggestions) {	// heh. not exactly speedy.
+				$n = array_rand($output);
+				array_splice($output, $n, 1);
+			}
+		}
+		else {
+			$output = array_splice($output, 0, (int)$maxSuggestions);
+		}
 	}
 }
 header("Content-type: text/javascript");
