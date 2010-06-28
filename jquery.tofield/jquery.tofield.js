@@ -96,30 +96,56 @@
 		return results;
 	};
 
+	$.fn.toField.sanitizeText = function(text) {
+		return text.substr(0, Math.min(text.length, 255));
+	};
+
+	$.fn.toField.htmlEscapeText = function(text) {
+		return text.replace(/&/gmi, '&amp;').
+			replace(/"/gmi, '&quot;').
+			replace(/>/gmi, '&gt;').
+			replace(/</gmi, '&lt;');
+	};
+
 	$.fn.toField.getResultItemMarkup = function(contact) {
 		return '\
 			<li class="search-result">\
-				' + (!contact.isMirror() ? '<div class="contact-name">' + contact.name + '</div>' : '') + '\
-				<div class="contact-identifier">&lt;' + contact.identifier + '&gt;</div>\
+				' + (!contact.isMirror() ? '<div class="contact-name">' + contact.toField.htmlEscapeText(contact.name) + '</div>' : '') + '\
+				<div class="contact-identifier">&lt;' + contact.toField.htmlEscapeText(contact.identifier) + '&gt;</div>\
 			</li>';
 	};
 	
 	$.fn.toField.getContactTokenMarkup = function(contact) {
 		var customClass = contact.getCustomClass();
 		return '\
-			<a href="javascript:void(0)" title="' + contact.identifier + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
-				' + (contact.name.length ? contact.name.replace(' ', '&nbsp;') : contact.identifier) + '\
+			<a href="javascript:void(0)" title="' + contact.toField.htmlEscapeText(contact.identifier) + '" class="contact-token' + (customClass.length ? ' ' + customClass : '') + '">\
+				' + (contact.name.length ? contact.toField.htmlEscapeText(contact.name).replace(' ', '&nbsp;') : contact.toField.htmlEscapeText(contact.identifier)) + '\
 			</a>';
 	};
 
 	$.fn.toField.setFormInput = function(contacts, jqInput) {
-		jqInput.val($.map(contacts, function(contact) { return contact.identifier; }).join(','));
+		var val = $.map(contacts, function(contact) { return contact.identifier; }).join(',');
+		jqInput.val(val);
+		// trigger on both the toField and the input itself
+		$(this).trigger('selectionChanged', val);
+		jqInput.trigger('selectionChanged', val);
+		/*
+		if (typeof this.handleChanged == 'function') {
+			this.handleChanged(val);
+		}
+		*/
 	};
+
+	$.fn.toField.getFormInputValue = function(jqInput) {
+		return jqInput.val().split(',');
+		//jqInput.val($.map(contacts, function(contact) { return contact.identifier; }).join(','));
+	};
+
 	
 	$.fn.toField.truncateTokenToFit = function(jqToken, maxWidth) {
 		var safety = 0;	// avoid accidental inifinite loop
 		var text = $.trim(jqToken.html());	// assumes markup structure
-		while (jqToken.outerWidth(true) > maxWidth && safety++ < 100) {
+		while (jqToken.outerWidth(true) > maxWidth && safety++ < 255) {
 			jqToken.html(text.substr(0, text.length - 2) + '&hellip;');
 			text = jqToken.html();
 		}
@@ -130,15 +156,19 @@
 		maxTokenRows: 4,
 		maxSuggestions: 10,
 		maxSuggestionRows: 5,
+		minTextLength: 0,
 		acceptAdHoc: true,
 		idleDelay: 100,
 		scrollbarSize: 18,
 		searchKeys: [ 'name', 'identifier' ],
 		search: $.fn.toField.search,
 		setFormInput: $.fn.toField.setFormInput,
+		getFormInputValue: $.fn.toField.getFormInputValue,
 		getResultItemMarkup: $.fn.toField.getResultItemMarkup,
 		getContactTokenMarkup: $.fn.toField.getContactTokenMarkup,
-		truncateTokenToFit: $.fn.toField.truncateTokenToFit
+		truncateTokenToFit: $.fn.toField.truncateTokenToFit,
+		sanitizeText: $.fn.toField.sanitizeText,
+		htmlEscapeText: $.fn.toField.htmlEscapeText
 	};	
 
 	// simple observer pattern
@@ -226,13 +256,36 @@
 		this.getResultItemMarkup = options.getResultItemMarkup._cfBind(this);
 		this.getContactTokenMarkup = options.getContactTokenMarkup._cfBind(this);
 		this.setFormInput = options.setFormInput._cfBind(this);
+		this.getFormInputValue = options.getFormInputValue._cfBind(this);
+		this.sanitizeText = options.sanitizeText._cfBind(this);
+		this.htmlEscapeText = options.htmlEscapeText._cfBind(this);
 		
-		if (typeof options.contacts == 'function') {
-			this.setContacts(options.contacts(), true);
+		var initialValues = this.getFormInputValue(jqFormInput);
+		var contacts = (typeof options.contacts == 'function') ? options.contacts() : options.contacts;
+
+		// add in any values we don't already know about if we are 
+		// ok with ad-hoc.
+		if (this.options.acceptAdHoc) {
+			$.each(initialValues, function(i, value) {
+				if (!value.length) {
+					return;
+				}
+				var known = false;
+				if (contacts.length) {
+					$.each(contacts, function(i, contact) {
+						if (contact.identifier == value) {
+							known = true;
+							return false;
+						}
+					});
+				}
+				if (!known) {
+					contacts.push({ name: value, identifier: value });
+				}
+			});
 		}
-		else {
-			this.setContacts(options.contacts, true);
-		}
+		
+		this.setContacts(contacts, true);
 		
 		this.options.maxSuggestionRows = Math.max(2, this.options.maxSuggestionRows);
 		this.options.maxTokenRows = Math.max(2, this.options.maxTokenRows);
@@ -251,6 +304,18 @@
 		this.addObserver('searchCompleted', this.handleSearchCompleted._cfBind(this));
 		this.addObserver('sortingCompleted', this.handleSortingCompleted._cfBind(this));
 		this.calculateSearchParams();
+
+		// select existing values
+		$.each(initialValues, (function(i, value) {
+			if (this.contacts.length) {
+				$.each(this.contacts, function(i, contact) {
+					if (contact.identifier == value) {
+						contact.select();
+					}
+				});
+			}
+		})._cfBind(this));
+		
 		return this;
 	};
 
@@ -373,7 +438,7 @@
 			})._cfBind(this));
 			
 			this.jqInlineInput.keyup((function(event) {
-				var value = this.jqInlineInput.val();
+				var value = this.sanitizeText(this.jqInlineInput.val());
 				if (this.searchText != value) {
 					this.setSearchText(value);
 				}
@@ -384,6 +449,7 @@
 					if (!this._mouseOverSearchResultsList) {	// yay ie.
 						this.hideSearchResults();
 					}
+					$(this).trigger('blur');
 				})._cfBind(this), 1);
 			})._cfBind(this));
 			
@@ -391,6 +457,7 @@
 				if (this.searchText.length) {
 					this.showSearchResults();
 				}
+				$(this).trigger('focus');
 			})._cfBind(this));
 
 			this.jqInlineInputContainer.append(this.jqInlineInput);
@@ -537,7 +604,12 @@
 		
 		handleSearchTextChanged: function(text) {
 			if (text.length) {
-				this.dispatchSearch(text);
+				if (this.options.minTextLength == 0 || text.length >= this.options.minTextLength) {
+					this.dispatchSearch(text);
+				}
+				else {
+					this.handleSearchCompleted([]);
+				}
 			}
 			else {
 				if (this.volatileContacts) {
@@ -576,6 +648,11 @@
 		},
 
 		setSearchText: function(text) {
+			// only accept up to the first comma
+			var commaIndex = text.indexOf(',');
+			if (commaIndex > -1) {
+				text = text.substr(0, commaIndex);
+			}
 			if (this.jqInlineInput.val() != text) {
 				this.jqInlineInput.val(text);
 			}
@@ -871,7 +948,13 @@
 			}
 			else if (this.searchResults.length == 0) {
 				var mirror = this.getMirrorContact();
-				mirror.setSelectable(false);
+				if (this.searchText.length < this.options.minTextLength) {
+					mirror.setSelectable(false, this.options.minTextLength + '-character minimum');
+				}
+				else {
+					mirror.setSelectable(false);
+				}
+
 				this.searchResults.push(mirror);
 			}			
 
@@ -1069,11 +1152,11 @@
 				this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());	// preserve the node and jquery object
 			}
 		},
-		setSelectable: function(selectable) {
+		setSelectable: function(selectable, message) {
 			this.selectable = selectable;
 			if (!this.selectable) {
-				this.setIdentifier('No Match');
-				this.setName('No Match');
+				this.setIdentifier(message || 'No Match');
+				this.setName(message || 'No Match');
 				this.getResultListItem().html($(this.toField.getResultItemMarkup(this)).html());
 			}
 		}
